@@ -1,7 +1,8 @@
+const API_URL = "https://script.google.com/macros/s/AKfycbyEhgcSbtxSlqHXdBUDEAR7nbACGhIwqpnWpdh_VDL1h8Bs5vmDOi1TGsN0xE3j840V/exec";
+
 <!DOCTYPE html>
 <html>
   <head>
-    <base target="_top">
     <meta charset="utf-8" />
     <title>IAC Profile Form</title>
     <style>
@@ -695,14 +696,26 @@
           if (!emailVal) { showMessage('Please provide an Email ID before submitting.', 'error'); return; }
           const submitBtn = form.querySelector('button[type="submit"]');
           if (submitBtn) { submitBtn.disabled = true; const spinner=document.createElement('span'); spinner.className='spinner'; submitBtn.prepend(spinner); }
-          google.script.run.withSuccessHandler(function(exists){
-            if (submitBtn) { submitBtn.disabled = false; const sp = submitBtn.querySelector('.spinner'); if (sp && sp.parentNode) sp.parentNode.removeChild(sp); }
-            if (exists) { showMessage('This email ID already exists within the records. Kindly enter the new email ID or edit the submitted application', 'error'); return; }
-            submitForm(persona);
-          }).withFailureHandler(function(err){
-            if (submitBtn) { submitBtn.disabled = false; const sp = submitBtn.querySelector('.spinner'); if (sp && sp.parentNode) sp.parentNode.removeChild(sp); }
-            showMessage('Server error while checking email: ' + (err && err.message ? err.message : String(err)), 'error');
-          }).emailExists(persona, emailVal);
+          fetch(API_URL, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    action: "emailExists",
+    payload: { persona: persona, email: emailVal }
+  })
+})
+.then(r => r.json())
+.then(function(res){
+  // server might return boolean or object { exists: true }
+  const exists = (typeof res === 'boolean') ? res : (res && (res.exists || res === true));
+  if (submitBtn) { submitBtn.disabled = false; const sp = submitBtn.querySelector('.spinner'); if (sp && sp.parentNode) sp.parentNode.removeChild(sp); }
+  if (exists) { showMessage('This email ID already exists within the records. Kindly enter the new email ID or edit the submitted application', 'error'); return; }
+  submitForm(persona);
+})
+.catch(function(err){
+  if (submitBtn) { submitBtn.disabled = false; const sp = submitBtn.querySelector('.spinner'); if (sp && sp.parentNode) sp.parentNode.removeChild(sp); }
+  showMessage('Server error while checking email: ' + (err && err.message ? err.message : String(err)), 'error');
+});
         } else {
           submitForm(persona);
         }
@@ -783,35 +796,45 @@
         }
 
         Promise.all(fileReads).then(function(){
-          google.script.run.withSuccessHandler(function(resp) {
-            if (resp && resp.success) {
-              const pu = APP_CONFIG.programUrls || {};
-              const gpiUrl = pu.gpi || '#';
-              const industryUrl = pu.industryTraining || '#';
-              const selUrl = pu.sel || '#';
-              const jobsUrl = pu.jobs || '#';
+          fetch(API_URL, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    action: "upsertRecord",
+    payload: { persona: persona, values: values }
+  })
+})
+.then(r => r.json())
+.then(function(resp){
+  if (resp && resp.success) {
+    const pu = APP_CONFIG.programUrls || {};
+    const gpiUrl = pu.gpi || '#';
+    const industryUrl = pu.industryTraining || '#';
+    const selUrl = pu.sel || '#';
+    const jobsUrl = pu.jobs || '#';
 
-              let html = '<div class="success-box">';
-              html += '<strong>' + (resp.message || 'Submitted successfully.') + '</strong><br/><br/>';
-              html += '<div>In case you want to access our programs, kindly use the buttons below:</div>';
-              html += '<div style="margin-top:12px;">';
-              html += '<a class="program-cta" href="' + gpiUrl + '" target="_blank" rel="noopener noreferrer">GPI</a>';
-              html += '<a class="program-cta" href="' + industryUrl + '" target="_blank" rel="noopener noreferrer">Industry Training</a>';
-              html += '<a class="program-cta" href="' + selUrl + '" target="_blank" rel="noopener noreferrer">Startup Entrepreneurship Launchpad (SEL)</a>';
-              html += '<a class="program-cta" href="' + jobsUrl + '" target="_blank" rel="noopener noreferrer">Jobs</a>';
-              html += '</div></div>';
+    let html = '<div class="success-box">';
+    html += '<strong>' + (resp.message || 'Submitted successfully.') + '</strong><br/><br/>';
+    html += '<div>In case you want to access our programs, kindly use the buttons below:</div>';
+    html += '<div style="margin-top:12px;">';
+    html += '<a class="program-cta" href="' + gpiUrl + '" target="_blank" rel="noopener noreferrer">GPI</a>';
+    html += '<a class="program-cta" href="' + industryUrl + '" target="_blank" rel="noopener noreferrer">Industry Training</a>';
+    html += '<a class="program-cta" href="' + selUrl + '" target="_blank" rel="noopener noreferrer">Startup Entrepreneurship Launchpad (SEL)</a>';
+    html += '<a class="program-cta" href="' + jobsUrl + '" target="_blank" rel="noopener noreferrer">Jobs</a>';
+    html += '</div></div>';
 
-              messageArea.innerHTML = html;
-              window.scrollTo({ top: 0, behavior: 'smooth' });
+    messageArea.innerHTML = html;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 
-              formContainer.classList.add('hidden');
-              editEmailArea.classList.add('hidden');
-            } else {
-              showMessage((resp && resp.message) || 'Something went wrong.', 'error');
-            }
-          }).withFailureHandler(function(err){
-            showMessage('Server error: ' + (err && err.message ? err.message : String(err)), 'error');
-          }).upsertRecord({ persona: persona, values: values });
+    formContainer.classList.add('hidden');
+    editEmailArea.classList.add('hidden');
+  } else {
+    showMessage((resp && resp.message) || 'Something went wrong.', 'error');
+  }
+})
+.catch(function(err){
+  showMessage('Server error: ' + (err && err.message ? err.message : String(err)), 'error');
+});
         }).catch(function(err){
           showMessage('File read error: ' + (err && err.message ? err.message : String(err)), 'error');
         });
@@ -826,19 +849,29 @@
         if (loadButton) { loadButton.disabled = true; } if (editEmailInput) { editEmailInput.disabled = true; }
         const spinner = document.createElement('span'); spinner.className='spinner'; if (loadButton && loadButton.firstChild) loadButton.insertBefore(spinner, loadButton.firstChild);
 
-        google.script.run.withSuccessHandler(function(resp){
-          isLoadingRecord = false; if (loadButton) loadButton.disabled = false; if (editEmailInput) editEmailInput.disabled = false;
-          if (spinner && spinner.parentNode) spinner.parentNode.removeChild(spinner);
-          if (!resp || !resp.found) {
-            showMessage((resp && resp.message) || 'No records found! If you had submitted your details please contact member@industryacademiacommunity.com', 'error');
-            formContainer.classList.add('hidden'); return;
-          }
-          currentMode = 'edit'; buildFormForPersona(persona, resp.values); showMessage('Record loaded. You can modify and submit.');
-        }).withFailureHandler(function(err){
-          isLoadingRecord = false; if (loadButton) loadButton.disabled = false; if (editEmailInput) editEmailInput.disabled = false;
-          if (spinner && spinner.parentNode) spinner.parentNode.removeChild(spinner);
-          showMessage('Server error: ' + (err && err.message ? err.message : String(err)), 'error');
-        }).fetchRecordForEdit(persona, email);
+        fetch(API_URL, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    action: "fetchRecordForEdit",
+    payload: { persona: persona, email: email }
+  })
+})
+.then(r => r.json())
+.then(function(resp){
+  isLoadingRecord = false; if (loadButton) loadButton.disabled = false; if (editEmailInput) editEmailInput.disabled = false;
+  if (spinner && spinner.parentNode) spinner.parentNode.removeChild(spinner);
+  if (!resp || !resp.found) {
+    showMessage((resp && resp.message) || 'No records found! If you had submitted your details please contact member@industryacademiacommunity.com', 'error');
+    formContainer.classList.add('hidden'); return;
+  }
+  currentMode = 'edit'; buildFormForPersona(persona, resp.values); showMessage('Record loaded. You can modify and submit.');
+})
+.catch(function(err){
+  isLoadingRecord = false; if (loadButton) loadButton.disabled = false; if (editEmailInput) editEmailInput.disabled = false;
+  if (spinner && spinner.parentNode) spinner.parentNode.removeChild(spinner);
+  showMessage('Server error: ' + (err && err.message ? err.message : String(err)), 'error');
+});
       }
 
       function resetToPersonaSelection(){ currentMode=''; editEmailArea.classList.add('hidden'); formContainer.classList.add('hidden'); clearMessage(); }
@@ -877,19 +910,31 @@
 
       // init
       function init() {
-        google.script.run.withSuccessHandler(function(map){
-          PERSONA_FIELDS = map || {};
-          const keys = Object.keys(PERSONA_FIELDS);
-          keys.forEach(k => { const opt=document.createElement('option'); opt.value=k; opt.textContent=k; personaSelect.appendChild(opt); });
-          personaSelect.value='';
-        }).withFailureHandler(function(err){ showMessage('Failed to load persona options: ' + (err && err.message ? err.message : String(err)), 'error'); }).getPersonaFields();
+        fetch(API_URL + "?action=getPersonaFields")
+  .then(r => r.json())
+  .then(function(map){
+    PERSONA_FIELDS = map || {};
+    const keys = Object.keys(PERSONA_FIELDS);
+    keys.forEach(k => { const opt=document.createElement('option'); opt.value=k; opt.textContent=k; personaSelect.appendChild(opt); });
+    personaSelect.value='';
+  })
+  .catch(function(err){
+    showMessage('Failed to load persona options: ' + (err && err.message ? err.message : String(err)), 'error');
+  });
 
-        google.script.run.withSuccessHandler(function(cfg){
-          APP_CONFIG = cfg || {};
-          if (APP_CONFIG.logoUrl) { companyLogoImg.src = APP_CONFIG.logoUrl; companyLogoImg.style.display=''; } else companyLogoImg.style.display='none';
-        }).withFailureHandler(function(err){ /* silent fallback */ }).getAppConfig();
+        fetch(API_URL + "?action=getAppConfig")
+  .then(r => r.json())
+  .then(function(cfg){
+    APP_CONFIG = cfg || {};
+    if (APP_CONFIG.logoUrl) { companyLogoImg.src = APP_CONFIG.logoUrl; companyLogoImg.style.display=''; } else companyLogoImg.style.display='none';
+  })
+  .catch(function(err){
+    // silent fallback (same behavior as before)
+    companyLogoImg.style.display='none';
+  });
       }
       document.addEventListener('DOMContentLoaded', init);
     </script>
   </body>
+
 </html>
