@@ -1,8 +1,7 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbyEhgcSbtxSlqHXdBUDEAR7nbACGhIwqpnWpdh_VDL1h8Bs5vmDOi1TGsN0xE3j840V/exec";
-
 <!DOCTYPE html>
 <html>
   <head>
+    <base target="_top">
     <meta charset="utf-8" />
     <title>IAC Profile Form</title>
     <style>
@@ -878,38 +877,19 @@ const API_URL = "https://script.google.com/macros/s/AKfycbyEhgcSbtxSlqHXdBUDEAR7
 
       // init
       function init() {
-        fetch(API_URL + "?action=getPersonaFields")
-  .then(r => r.json())
-  .then(function(map){
-    PERSONA_FIELDS = map || {};
-    const keys = Object.keys(PERSONA_FIELDS);
-    keys.forEach(k => {
-      const opt=document.createElement('option');
-      opt.value=k;
-      opt.textContent=k;
-      personaSelect.appendChild(opt);
-    });
-  })
-  .catch(err => {
-    showMessage("Failed to load persona options: " + err, "error");
-  });
+        google.script.run.withSuccessHandler(function(map){
+          PERSONA_FIELDS = map || {};
+          const keys = Object.keys(PERSONA_FIELDS);
+          keys.forEach(k => { const opt=document.createElement('option'); opt.value=k; opt.textContent=k; personaSelect.appendChild(opt); });
+          personaSelect.value='';
+        }).withFailureHandler(function(err){ showMessage('Failed to load persona options: ' + (err && err.message ? err.message : String(err)), 'error'); }).getPersonaFields();
 
-
-        fetch(API_URL + "?action=getAppConfig")
-  .then(r => r.json())
-  .then(function(cfg){
-    APP_CONFIG = cfg || {};
-    if (APP_CONFIG.logoUrl) {
-      companyLogoImg.src = APP_CONFIG.logoUrl;
-      companyLogoImg.style.display='';
-    } else {
-      companyLogoImg.style.display='none';
-    }
-  });
-
+        google.script.run.withSuccessHandler(function(cfg){
+          APP_CONFIG = cfg || {};
+          if (APP_CONFIG.logoUrl) { companyLogoImg.src = APP_CONFIG.logoUrl; companyLogoImg.style.display=''; } else companyLogoImg.style.display='none';
+        }).withFailureHandler(function(err){ /* silent fallback */ }).getAppConfig();
       }
       document.addEventListener('DOMContentLoaded', init);
     </script>
   </body>
-
 </html>
