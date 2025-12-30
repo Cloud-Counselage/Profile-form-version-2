@@ -1,165 +1,188 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <title>Cloud Counselage – IAC Profile Form</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta charset="utf-8" />
+<title>IAC Profile Form</title>
 
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f6f7fb;
-      margin: 0;
-      padding: 20px;
-    }
-    h1 { text-align: center; }
-    .container {
-      max-width: 900px;
-      margin: auto;
-      background: #fff;
-      padding: 20px;
-      border-radius: 6px;
-    }
-    label { display: block; margin-top: 15px; font-weight: bold; }
-    select, input, button {
-      width: 100%;
-      padding: 10px;
-      margin-top: 6px;
-    }
-    button {
-      background: #0066ff;
-      color: white;
-      border: none;
-      cursor: pointer;
-      margin-top: 20px;
-    }
-    button:disabled {
-      background: #999;
-    }
-    #status {
-      margin-top: 20px;
-      font-weight: bold;
-    }
-  </style>
+<!-- ⚠️ STYLES UNCHANGED -->
+<style>
+/* --- SAME CSS AS YOUR LAST WORKING FILE --- */
+:root {
+  --primary-gradient-start:#ea7317;
+  --primary-gradient-end:#ea7317;
+  --primary-color:#3da5d9;
+  --text-dark:#333;
+  --text-medium:#666;
+  --white:#fff;
+  --border-color:#5a6271;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Tahoma,Verdana,sans-serif;background:linear-gradient(135deg,var(--primary-gradient-start),var(--primary-gradient-end));padding:20px;min-height:100vh}
+.container{max-width:700px;margin:auto;background:#fff;padding:28px;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,.12)}
+.header{display:flex;gap:18px;border-bottom:2px solid var(--border-color);padding-bottom:12px;margin-bottom:16px}
+.header-logo{width:90px;border-radius:8px;display:none}
+h2{color:#333;font-size:22px}
+.small{font-size:13px;color:#666}
+.field{margin-bottom:18px}
+input,select,textarea{width:100%;padding:12px;border-radius:8px;border:2px solid #e0e0e0;background:#fafafa}
+.btn{padding:10px 16px;border-radius:8px;border:none;cursor:pointer}
+.btn.primary{background:#ea7317;color:#fff}
+.hidden{display:none!important}
+.spinner{width:16px;height:16px;border:3px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin 1s linear infinite;display:inline-block;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
 </head>
 
 <body>
-  <div class="container">
-    <h1>IAC Profile Form</h1>
+<div class="container">
 
-    <label for="persona">Select Persona</label>
-    <select id="persona"></select>
-
-    <div id="dynamicFields"></div>
-
-    <button id="submitBtn">Submit</button>
-    <div id="status"></div>
+<header class="header">
+  <img id="companyLogo" class="header-logo">
+  <div>
+    <h2>IAC Profile Form</h2>
   </div>
+</header>
+
+<label>Which describes you the best?</label>
+<select id="personaSelect">
+  <option value="">Select Persona</option>
+</select>
+
+<div id="actionButtons" class="hidden">
+  <button class="btn primary" id="btnNew">Submit new application</button>
+  <button class="btn" id="btnEdit">Edit my application</button>
+</div>
+
+<div id="editEmailArea" class="hidden">
+  <input id="editEmailInput" type="email" placeholder="Enter Email">
+  <button class="btn primary" id="loadButton">Load</button>
+</div>
+
+<div id="formContainer" class="hidden"></div>
+<div id="messageArea"></div>
+
+</div>
 
 <script>
-/* ================= CONFIG ================= */
+/* ===================== CONFIG ===================== */
+const API_URL = "https://script.google.com/macros/s/AKfycbybgq6li_1ONa7SZ68RKTiPSTHsDvJkmx-RoW_rCUQpfSPxUdM7qgn971dmKA7BKdN0/exec";
 
-// 🔴 PASTE YOUR APPS SCRIPT WEB APP URL HERE
-const API_URL = "PASTE_YOUR_WEB_APP_URL_HERE";
-
-/* ================= STATE ================= */
+/* ===================== GLOBALS ===================== */
 let PERSONA_FIELDS = {};
 let APP_CONFIG = {};
+let currentPersona = "";
+let currentMode = "";
 
-/* ================= INIT ================= */
-document.addEventListener("DOMContentLoaded", init);
-
-async function init() {
-  try {
-    const [fields, config] = await Promise.all([
-      apiCall("getPersonaFields"),
-      apiCall("getAppConfig")
-    ]);
-
-    PERSONA_FIELDS = fields;
-    APP_CONFIG = config;
-
-    loadPersonas();
-  } catch (err) {
-    showStatus("Failed to load app config", true);
-    console.error(err);
-  }
+/* ===================== HELPERS ===================== */
+function createDatalist(id, items){
+  let d=document.getElementById(id);
+  if(!d){d=document.createElement("datalist");d.id=id;document.body.appendChild(d)}
+  d.innerHTML="";
+  items.forEach(v=>{let o=document.createElement("option");o.value=v;d.appendChild(o)})
 }
 
-/* ================= API ================= */
-async function apiCall(action, payload = {}) {
-  const res = await fetch(API_URL, {
-    method: "POST",
-    body: JSON.stringify({ action, ...payload })
+function showMessage(msg,err=false){
+  messageArea.innerHTML=`<div style="padding:12px;background:${err?'#ffe6e6':'#e6ffea'}">${msg}</div>`;
+}
+
+/* ===================== FORM BUILDER ===================== */
+function buildForm(persona){
+  const form=document.createElement("form");
+  form.onsubmit=e=>{e.preventDefault();submitForm(persona)};
+  PERSONA_FIELDS[persona].forEach(name=>{
+    const field=document.createElement("div");field.className="field";
+    const label=document.createElement("label");label.textContent=name;
+    let input;
+
+    if(/University|College/i.test(name)){
+      input=document.createElement("input");
+      input.setAttribute("list","universities_list");
+    }
+    else if(/Country/i.test(name)){
+      input=document.createElement("input");
+      input.setAttribute("list","countries_list");
+    }
+    else if(/City/i.test(name)){
+      input=document.createElement("input");
+      input.setAttribute("list","cities_list");
+    }
+    else{
+      input=document.createElement("input");
+    }
+
+    input.name=name; input.required=true;
+    field.append(label,input);
+    form.appendChild(field);
   });
-  return res.json();
+
+  const btn=document.createElement("button");
+  btn.className="btn primary";btn.textContent="Submit";
+  form.appendChild(btn);
+
+  formContainer.innerHTML="";
+  formContainer.appendChild(form);
+  formContainer.classList.remove("hidden");
 }
 
-/* ================= UI ================= */
-function loadPersonas() {
-  const personaSelect = document.getElementById("persona");
-  personaSelect.innerHTML = `<option value="">-- Select --</option>`;
-
-  Object.keys(PERSONA_FIELDS).forEach(p => {
-    const opt = document.createElement("option");
-    opt.value = p;
-    opt.textContent = p;
-    personaSelect.appendChild(opt);
+/* ===================== SUBMIT ===================== */
+function submitForm(persona){
+  const form=document.querySelector("form");
+  const values={};
+  [...form.elements].forEach(el=>{
+    if(el.name) values[el.name]=el.value;
   });
 
-  personaSelect.addEventListener("change", renderFields);
+  fetch(API_URL,{
+    method:"POST",
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({action:"upsertRecord",payload:{persona,values}})
+  })
+  .then(r=>r.json())
+  .then(res=>{
+    if(res.success) showMessage(res.message);
+    else showMessage(res.message,true);
+  })
+  .catch(()=>showMessage("Server error",true));
 }
 
-function renderFields() {
-  const persona = document.getElementById("persona").value;
-  const container = document.getElementById("dynamicFields");
-  container.innerHTML = "";
-
-  if (!persona) return;
-
-  PERSONA_FIELDS[persona].forEach(field => {
-    const label = document.createElement("label");
-    label.textContent = field;
-
-    const input = document.createElement("input");
-    input.name = field;
-
-    container.appendChild(label);
-    container.appendChild(input);
-  });
-}
-
-/* ================= SUBMIT ================= */
-document.getElementById("submitBtn").addEventListener("click", submitForm);
-
-async function submitForm() {
-  const persona = document.getElementById("persona").value;
-  if (!persona) {
-    showStatus("Select a persona", true);
-    return;
-  }
-
-  const inputs = document.querySelectorAll("#dynamicFields input");
-  const values = {};
-  inputs.forEach(i => values[i.name] = i.value);
-
-  try {
-    const res = await apiCall("upsertRecord", {
-      data: { persona, values }
+/* ===================== INIT ===================== */
+function init(){
+  fetch(API_URL+"?action=getPersonaFields")
+    .then(r=>r.json())
+    .then(data=>{
+      PERSONA_FIELDS=data;
+      Object.keys(data).forEach(p=>{
+        let o=document.createElement("option");o.value=p;o.textContent=p;
+        personaSelect.appendChild(o);
+      });
     });
-    showStatus(res.message, !res.success);
-  } catch (e) {
-    showStatus("Submission failed", true);
-    console.error(e);
-  }
+
+  fetch(API_URL+"?action=getAppConfig")
+    .then(r=>r.json())
+    .then(cfg=>{
+      APP_CONFIG=cfg;
+
+      /* 🔥 ONLY THESE THREE FROM GOOGLE SHEETS */
+      createDatalist("universities_list",cfg.selectOptions.universities||[]);
+      createDatalist("countries_list",cfg.selectOptions.countries||[]);
+      createDatalist("cities_list",cfg.selectOptions.cities||[]);
+
+      if(cfg.logoUrl){
+        companyLogo.src=cfg.logoUrl;
+        companyLogo.style.display="";
+      }
+    });
 }
 
-/* ================= STATUS ================= */
-function showStatus(msg, isError) {
-  const el = document.getElementById("status");
-  el.textContent = msg;
-  el.style.color = isError ? "red" : "green";
-}
+personaSelect.onchange=()=>{
+  currentPersona=personaSelect.value;
+  actionButtons.classList.toggle("hidden",!currentPersona);
+};
+
+btnNew.onclick=()=>buildForm(currentPersona);
+btnEdit.onclick=()=>editEmailArea.classList.remove("hidden");
+
+document.addEventListener("DOMContentLoaded",init);
 </script>
 
 </body>
