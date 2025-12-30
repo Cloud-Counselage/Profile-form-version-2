@@ -39,6 +39,11 @@
       .file-existing-note { font-size: 13px; color: #2e7d32; margin-top: 6px; display: flex; align-items: center; gap: 6px; }
       .file-existing-note a { color: #2e7d32; font-weight: 600; }
 
+      /* Phone Row */
+      .phone-row { display: flex; gap: 10px; }
+      .phone-row select { width: 35%; max-width: 120px; }
+      .phone-row input { flex: 1; }
+
       /* Multi-checkbox UI */
       .multi-checkbox-wrap { border:1px solid #eee; padding:8px; border-radius:8px; max-height:220px; overflow:auto; background:#fff; margin-top:8px; }
       .multi-checkbox-item { display:flex; align-items:center; gap:8px; padding:8px 6px; border-bottom:1px solid #f1f1f1; cursor: pointer; transition: background .12s ease; }
@@ -89,7 +94,7 @@
       // ==========================================
       // ⚠️ IMPORTANT: PASTE YOUR DEPLOYED WEB APP URL HERE
       // ==========================================
-      const API_URL = "https://script.google.com/macros/s/AKfycbybgq6li_1ONa7SZ68RKTiPSTHsDvJkmx-RoW_rCUQpfSPxUdM7qgn971dmKA7BKdN0/exec"; 
+      const API_URL = "https://script.google.com/macros/s/AKfycbyEhgcSbtxSlqHXdBUDEAR7nbACGhIwqpnWpdh_VDL1h8Bs5vmDOi1TGsN0xE3j840V/exec"; 
 
       let PERSONA_FIELDS = {};
       let APP_CONFIG = {};
@@ -124,6 +129,7 @@
 
       function showMessage(text, type='success') {
         messageArea.innerHTML = '<div class="message" style="background:' + (type==='error' ? '#ffe6e6' : '#e6ffea') + ';">' + text + '</div>';
+        // Scroll to message area (Bottom) instead of top
         messageArea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }
       function sanitizeId(s) { return String(s).replace(/[^a-z0-9\-_]/ig,'_'); }
@@ -161,9 +167,8 @@
       function populateControlsFromPrefill(formEl, prefillValues) {
         if (!prefillValues) return;
         
-        // 1. Standard Inputs
         Array.from(formEl.elements).forEach(i => {
-          const val = prefillValues[i.name];
+          let val = prefillValues[i.name];
           if (val === undefined || val === null) return;
           
           if (i.type === 'checkbox' && i.dataset.group !== 'multi') { 
@@ -172,8 +177,27 @@
           else if (i.type === 'radio') { 
             if (String(i.value).toLowerCase() === String(val).toLowerCase()) i.checked = true; 
           }
-          else if (i.type !== 'file') { 
-            i.value = val; 
+          else if (i.type !== 'file') {
+            // Logic for split phone number (Code + Number)
+            if (/mobile/i.test(i.name)) {
+                // If this is the "Mobile Number" input (text), try to split value
+                if (i.tagName === 'INPUT' && val.includes(' ')) {
+                    // Assume format "+91 9876543210"
+                    const parts = val.split(' '); 
+                    if (parts.length > 1) { i.value = parts.slice(1).join(' '); }
+                    else { i.value = val; }
+                }
+                // If this is "Mobile Country Code" select, try to match code
+                else if (i.tagName === 'SELECT' && prefillValues['Mobile Number'] && prefillValues['Mobile Number'].includes(' ')) {
+                    const code = prefillValues['Mobile Number'].split(' ')[0];
+                    if (code) i.value = code;
+                }
+                else {
+                    i.value = val;
+                }
+            } else {
+                i.value = val; 
+            }
           }
         });
 
@@ -216,18 +240,14 @@
              formEl.appendChild(div);
           } 
           else if (/resume/i.test(name)) {
-             // RESUME HANDLING: Check if prefill has it
              const existingUrl = prefillValues ? prefillValues[name] : null;
              const isRequired = !existingUrl; 
-             
              const div = document.createElement('div'); div.className='field';
              let html = `<label>${name}</label>`;
-             
              if (existingUrl) {
                html += `<div class="file-existing-note">✅ Resume on file: <a href="${existingUrl}" target="_blank">View Current Resume</a></div>`;
                html += `<div class="small" style="margin-bottom:4px;">Upload new to replace:</div>`;
              }
-             
              html += `<input type="file" name="${name}" accept="application/pdf" ${isRequired ? 'required' : ''}><div class="small">PDF only, max 10MB</div>`;
              div.innerHTML = html;
              formEl.appendChild(div);
@@ -236,6 +256,22 @@
              let opts = /Industry/i.test(name) ? APP_CONFIG.selectOptions.industries : APP_CONFIG.selectOptions.skills;
              formEl.appendChild(createCheckboxList(name, opts || []));
           } 
+          // --- FIXED MOBILE NUMBER SECTION ---
+          else if (/Mobile/i.test(name)) {
+             const div = document.createElement('div'); div.className='field';
+             let codeOpts = `<option value="">Code</option>`;
+             (APP_CONFIG.countryCodes || []).forEach(c => {
+                codeOpts += `<option value="${c.code}">${c.code} (${c.country})</option>`;
+             });
+             
+             div.innerHTML = `<label>${name}</label>
+               <div class="phone-row">
+                 <select name="Mobile Country Code" required>${codeOpts}</select>
+                 <input type="tel" name="${name}" placeholder="Phone Number" required>
+               </div>`;
+             formEl.appendChild(div);
+          }
+          // -----------------------------------
           else if (/Year of Graduation|Year/i.test(name) && !/Study/i.test(name)) {
              const div = document.createElement('div'); div.className='field';
              let html = `<label>${name}</label><select name="${name}" required><option value="">-- Select Year --</option>`;
@@ -287,9 +323,14 @@
         if(!form.checkValidity()) { form.reportValidity(); return; }
 
         const values = {}; const fileReads = [];
+        let mobileCode = "";
+        
         Array.from(form.elements).forEach(el => {
            if(el.name && el.type !== 'submit') {
-             if(el.type === 'checkbox' && el.dataset.group === 'multi') {
+             if (el.name === "Mobile Country Code") {
+                // Capture code separately first
+                mobileCode = el.value;
+             } else if(el.type === 'checkbox' && el.dataset.group === 'multi') {
                if(!values[el.name]) values[el.name] = [];
                if(el.checked) values[el.name].push(el.value);
              } else if (el.type === 'file' && el.files.length > 0) {
@@ -307,6 +348,12 @@
              }
            }
         });
+
+        // MERGE Mobile Code + Number
+        const mobileKey = Object.keys(values).find(k => /Mobile Number/i.test(k));
+        if (mobileKey && mobileCode) {
+            values[mobileKey] = mobileCode + " " + values[mobileKey];
+        }
 
         Object.keys(values).forEach(k => { if(Array.isArray(values[k])) values[k] = values[k].join(', '); });
         showMessage('Submitting...', 'success');
