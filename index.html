@@ -124,7 +124,7 @@
 
       function showMessage(text, type='success') {
         messageArea.innerHTML = '<div class="message" style="background:' + (type==='error' ? '#ffe6e6' : '#e6ffea') + ';">' + text + '</div>';
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        messageArea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }
       function sanitizeId(s) { return String(s).replace(/[^a-z0-9\-_]/ig,'_'); }
 
