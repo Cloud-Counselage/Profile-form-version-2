@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Cloud Counselage – IAC Profile Form</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f6f7fb;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 { text-align: center; }
+    .container {
+      max-width: 900px;
+      margin: auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 6px;
+    }
+    label { display: block; margin-top: 15px; font-weight: bold; }
+    select, input, button {
+      width: 100%;
+      padding: 10px;
+      margin-top: 6px;
+    }
+    button {
+      background: #0066ff;
+      color: white;
+      border: none;
+      cursor: pointer;
+      margin-top: 20px;
+    }
+    button:disabled {
+      background: #999;
+    }
+    #status {
+      margin-top: 20px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h1>IAC Profile Form</h1>
+
+    <label for="persona">Select Persona</label>
+    <select id="persona"></select>
+
+    <div id="dynamicFields"></div>
+
+    <button id="submitBtn">Submit</button>
+    <div id="status"></div>
+  </div>
+
+<script>
+/* ================= CONFIG ================= */
+
+// 🔴 PASTE YOUR APPS SCRIPT WEB APP URL HERE
+const API_URL = "PASTE_YOUR_WEB_APP_URL_HERE";
+
+/* ================= STATE ================= */
+let PERSONA_FIELDS = {};
+let APP_CONFIG = {};
+
+/* ================= INIT ================= */
+document.addEventListener("DOMContentLoaded", init);
+
+async function init() {
+  try {
+    const [fields, config] = await Promise.all([
+      apiCall("getPersonaFields"),
+      apiCall("getAppConfig")
+    ]);
+
+    PERSONA_FIELDS = fields;
+    APP_CONFIG = config;
+
+    loadPersonas();
+  } catch (err) {
+    showStatus("Failed to load app config", true);
+    console.error(err);
+  }
+}
+
+/* ================= API ================= */
+async function apiCall(action, payload = {}) {
+  const res = await fetch(API_URL, {
+    method: "POST",
+    body: JSON.stringify({ action, ...payload })
+  });
+  return res.json();
+}
+
+/* ================= UI ================= */
+function loadPersonas() {
+  const personaSelect = document.getElementById("persona");
+  personaSelect.innerHTML = `<option value="">-- Select --</option>`;
+
+  Object.keys(PERSONA_FIELDS).forEach(p => {
+    const opt = document.createElement("option");
+    opt.value = p;
+    opt.textContent = p;
+    personaSelect.appendChild(opt);
+  });
+
+  personaSelect.addEventListener("change", renderFields);
+}
+
+function renderFields() {
+  const persona = document.getElementById("persona").value;
+  const container = document.getElementById("dynamicFields");
+  container.innerHTML = "";
+
+  if (!persona) return;
+
+  PERSONA_FIELDS[persona].forEach(field => {
+    const label = document.createElement("label");
+    label.textContent = field;
+
+    const input = document.createElement("input");
+    input.name = field;
+
+    container.appendChild(label);
+    container.appendChild(input);
+  });
+}
+
+/* ================= SUBMIT ================= */
+document.getElementById("submitBtn").addEventListener("click", submitForm);
+
+async function submitForm() {
+  const persona = document.getElementById("persona").value;
+  if (!persona) {
+    showStatus("Select a persona", true);
+    return;
+  }
+
+  const inputs = document.querySelectorAll("#dynamicFields input");
+  const values = {};
+  inputs.forEach(i => values[i.name] = i.value);
+
+  try {
+    const res = await apiCall("upsertRecord", {
+      data: { persona, values }
+    });
+    showStatus(res.message, !res.success);
+  } catch (e) {
+    showStatus("Submission failed", true);
+    console.error(e);
+  }
+}
+
+/* ================= STATUS ================= */
+function showStatus(msg, isError) {
+  const el = document.getElementById("status");
+  el.textContent = msg;
+  el.style.color = isError ? "red" : "green";
+}
+</script>
+
+</body>
+</html>
