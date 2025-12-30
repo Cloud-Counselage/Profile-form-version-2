@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>IAC Profile Form</title>
+    <style>
+      :root {
+        --primary-gradient-start: #ea7317;
+        --primary-gradient-end: #ea7317;
+        --primary-color: #3da5d9;
+        --text-dark: #333;
+        --text-medium: #666;
+        --white: #fff;
+        --border-color: #5a6271;
+      }
+      *{box-sizing:border-box;margin:0;padding:0}
+      body{font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;background:linear-gradient(135deg,var(--primary-gradient-start) 0%,var(--primary-gradient-end) 100%);padding:20px;min-height:100vh}
+      .container{max-width:700px;margin:0 auto;background:var(--white);padding:28px;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,0.12)}
+      .header{display:flex;align-items:center;gap:18px;padding-bottom:12px;border-bottom:2px solid var(--border-color);margin-bottom:16px}
+      .header-logo{width:90px;border-radius:8px;display:block}
+      h2{margin:0;color:var(--text-dark);font-size:22px}
+      .subtitle{color:var(--text-medium);margin-top:6px}
+      .small{font-size:13px;color:var(--text-medium);margin-bottom:12px}
+      .control-row{display:flex;gap:12px;align-items:center;margin-bottom:12px}
+      label{display:block;margin-bottom:8px;font-weight:600}
+      input,select,textarea{width:100%;padding:12px;border-radius:8px;border:2px solid #e0e0e0;background:#fafafa}
+      .btn{padding:10px 16px;border-radius:8px;border:none;cursor:pointer}
+      .btn.primary{background:linear-gradient(135deg,var(--primary-gradient-start),var(--primary-gradient-end));color:var(--white)}
+      .btn.ghost{background:#fff;border:2px solid var(--primary-color);color:var(--primary-color)}
+      .hidden{display:none!important}
+      .field{margin-bottom:18px}
+      .radio-group{display:flex;gap:12px;align-items:center}
+      .radio-label{display:flex;align-items:center;gap:8px;cursor:pointer}
+      .radio-label input[type="radio"]{margin:0}
+      .message{padding:12px;border-radius:8px;margin-bottom:12px}
+      .program-cta { display:inline-block; margin:8px 8px 8px 0; padding:10px 14px; border-radius:8px; background:#ea7317; color:#fff; text-decoration:none; font-weight:600; }
+      .success-box { padding:16px; border-radius:8px; background:#e6ffea; }
+      .error-flash { color: #b71c1c; margin-top:8px; font-size:13px; }
+      .file-existing-note { font-size: 13px; color: #2e7d32; margin-top: 6px; display: flex; align-items: center; gap: 6px; }
+      .file-existing-note a { color: #2e7d32; font-weight: 600; }
+
+      /* Multi-checkbox UI */
+      .multi-checkbox-wrap { border:1px solid #eee; padding:8px; border-radius:8px; max-height:220px; overflow:auto; background:#fff; margin-top:8px; }
+      .multi-checkbox-item { display:flex; align-items:center; gap:8px; padding:8px 6px; border-bottom:1px solid #f1f1f1; cursor: pointer; transition: background .12s ease; }
+      .multi-checkbox-item input[type="checkbox"] { position: absolute !important; left: -9999px !important; }
+      .multi-checkbox-item .mk-label { flex: 1 1 auto; text-align: left; margin: 0; }
+      .multi-checkbox-item.selected { background: #eef7ff; border-left: 3px solid #3da5d9; }
+      .multi-search { width:100%; padding:8px; margin-bottom:8px; border-radius:6px; border:1px solid #ddd; }
+      .hint { font-size:12px; color:#666; margin-top:6px; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header class="header">
+        <img id="companyLogo" class="header-logo" src="" alt="Company logo" style="display:none" />
+        <div><h2>IAC Profile Form</h2></div>
+      </header>
+
+      <div class="control-row">
+        <label for="personaSelect" style="min-width:120px;">Which describes you the best?</label>
+        <select id="personaSelect" required><option value="">Select Persona</option></select>
+      </div>
+
+      <div id="actionButtons" class="control-row hidden">
+        <button id="btnNew" class="btn primary">Submit new application</button>
+        <button id="btnEdit" class="btn ghost">Edit my submitted application</button>
+      </div>
+
+      <div id="workflowArea">
+        <div id="facultyCtaArea" class="hidden" style="margin:12px 0;"></div>
+        <p id="globalDescription" class="small" style="margin-top:8px;">
+          Filling this profile form helps us understand your skills, goals, and interests...
+        </p>
+
+        <div id="editEmailArea" class="hidden" style="margin-top:12px;">
+          <div class="field" style="display:flex;gap:8px;align-items:center;">
+            <input id="editEmailInput" type="email" placeholder="Enter your Email ID" required />
+            <button id="loadButton" class="btn primary">Load</button>
+          </div>
+          <div id="editMsg" class="small">Enter the email you used previously and click on "Load".</div>
+        </div>
+
+        <div id="formContainer" class="hidden" style="margin-top:16px;"></div>
+        <div id="messageArea" style="margin-top:12px"></div>
+      </div>
+    </div>
+
+    <script>
+      // ==========================================
+      // ⚠️ IMPORTANT: PASTE YOUR DEPLOYED WEB APP URL HERE
+      // ==========================================
+      const API_URL = "https://script.google.com/macros/s/AKfycbyEhgcSbtxSlqHXdBUDEAR7nbACGhIwqpnWpdh_VDL1h8Bs5vmDOi1TGsN0xE3j840V/exec"; 
+
+      let PERSONA_FIELDS = {};
+      let APP_CONFIG = {};
+      let currentPersona = '';
+      let currentMode = ''; 
+
+      const YES_NO_FIELDS = [
+        "Have you upskilled or taken courses during the break?", "Are You Interested in Internship / Job Opportunities?",
+        "Are You Considering Transitioning to a Different Domain or Industry?", "Are You Open to Part-time, Freelance, or Remote Work Opportunities?",
+        "Are You interested in Entrepreneurship as a career option?", "Willing to Work Without Stipend for First 3 Months (Full-time Internship)",
+        "Would You Like to Connect with Mentors or Industry Professionals?", "Would You Like Guidance on Resume Building & Interview Preparation?",
+        "Do You Agree to Terms of Engagement?", "Do You Agree to Receive Communications from Us?", "Do You Want to Become a Community Ambassador?", "Internships Completed"
+      ];
+
+      const MULTI_SELECT_MAP = {
+        'Student': [ "Preferred Industry / Career Path / Field of Interest", "Academic Work & Hands-On Experience", "Current Skills (Technical & Soft)", "Skills You Want to Develop (Next 6–12 Months)" ],
+        'Working Professional': [ "Preferred Industry / Career Path / Field of Interest", "Current Skills (Technical & Soft)", "Skills You Want to Develop (Next 6–12 Months)" ],
+        'Professional on a Career Break': [ "Preferred Industry / Career Path / Field of Interest", "Current Skills (Technical & Soft)", "Skills You Want to Develop (Next 6–12 Months)" ]
+      };
+
+      const personaSelect = document.getElementById('personaSelect');
+      const actionButtons = document.getElementById('actionButtons');
+      const btnNew = document.getElementById('btnNew');
+      const btnEdit = document.getElementById('btnEdit');
+      const editEmailArea = document.getElementById('editEmailArea');
+      const editEmailInput = document.getElementById('editEmailInput');
+      const loadButton = document.getElementById('loadButton');
+      const formContainer = document.getElementById('formContainer');
+      const messageArea = document.getElementById('messageArea');
+      const facultyCtaArea = document.getElementById('facultyCtaArea');
+      const companyLogoImg = document.getElementById('companyLogo');
+
+      function showMessage(text, type='success') {
+        messageArea.innerHTML = '<div class="message" style="background:' + (type==='error' ? '#ffe6e6' : '#e6ffea') + ';">' + text + '</div>';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+      function sanitizeId(s) { return String(s).replace(/[^a-z0-9\-_]/ig,'_'); }
+
+      function createDatalist(id, items) {
+        let d = document.getElementById(id);
+        if (!d) { d = document.createElement('datalist'); d.id = id; document.body.appendChild(d); }
+        else { d.innerHTML = ''; }
+        (items || []).forEach(it => { const o=document.createElement('option'); o.value=it; d.appendChild(o); });
+      }
+
+      function createCheckboxList(fieldName, options) {
+        const wrap = document.createElement('div'); wrap.className = 'field';
+        wrap.innerHTML = `<label>${fieldName}</label><div class="hint">Select multiple.</div><input type="text" class="multi-search" placeholder="Search...">`;
+        const listWrap = document.createElement('div'); listWrap.className = 'multi-checkbox-wrap'; listWrap.id = 'wrap_' + sanitizeId(fieldName);
+        
+        options.forEach((opt) => {
+          const row = document.createElement('div'); row.className = 'multi-checkbox-item'; row.tabIndex = 0;
+          const cb = document.createElement('input'); cb.type = 'checkbox'; cb.value = opt; cb.name = fieldName; cb.dataset.group = 'multi';
+          const txt = document.createElement('div'); txt.className = 'mk-label'; txt.textContent = opt;
+          row.onclick = function() { cb.checked = !cb.checked; row.classList.toggle('selected', cb.checked); };
+          row.appendChild(cb); row.appendChild(txt); listWrap.appendChild(row);
+        });
+        wrap.appendChild(listWrap);
+        
+        wrap.querySelector('.multi-search').addEventListener('input', function(){
+          const q = this.value.toLowerCase();
+          listWrap.querySelectorAll('.multi-checkbox-item').forEach(it => {
+            it.style.display = (it.textContent.toLowerCase().indexOf(q) !== -1) ? '' : 'none';
+          });
+        });
+        return wrap;
+      }
+
+      function populateControlsFromPrefill(formEl, prefillValues) {
+        if (!prefillValues) return;
+        
+        // 1. Standard Inputs
+        Array.from(formEl.elements).forEach(i => {
+          const val = prefillValues[i.name];
+          if (val === undefined || val === null) return;
+          
+          if (i.type === 'checkbox' && i.dataset.group !== 'multi') { 
+            i.checked = (String(val).toLowerCase() === 'yes'); 
+          }
+          else if (i.type === 'radio') { 
+            if (String(i.value).toLowerCase() === String(val).toLowerCase()) i.checked = true; 
+          }
+          else if (i.type !== 'file') { 
+            i.value = val; 
+          }
+        });
+
+        // 2. Multi-Select Checkboxes
+        Object.keys(prefillValues).forEach(k => {
+           const checkboxes = formEl.querySelectorAll(`input[type="checkbox"][name="${k}"][data-group="multi"]`);
+           if(checkboxes.length > 0) {
+             const parts = String(prefillValues[k]).split(',').map(s=>s.trim());
+             checkboxes.forEach(cb => { 
+               if(parts.includes(cb.value)) { 
+                 cb.checked = true; 
+                 cb.parentElement.classList.add('selected'); 
+               } 
+             });
+           }
+        });
+      }
+
+      function buildFormForPersona(persona, prefillValues) {
+        formContainer.innerHTML = ''; formContainer.classList.remove('hidden');
+        const fields = PERSONA_FIELDS[persona] || [];
+        const formEl = document.createElement('form'); formEl.id='personaForm';
+        formEl.onsubmit = function(e){ e.preventDefault(); handleSubmit(persona); };
+
+        if (APP_CONFIG.selectOptions) {
+          createDatalist('universities_list', APP_CONFIG.selectOptions.universities);
+          createDatalist('cities_list', APP_CONFIG.selectOptions.cities);
+          createDatalist('countries_list', APP_CONFIG.selectOptions.countries);
+          createDatalist('skills_list', APP_CONFIG.selectOptions.skills);
+          createDatalist('companies_list', APP_CONFIG.selectOptions.companies);
+          createDatalist('sources_list', APP_CONFIG.selectOptions.sources);
+        }
+
+        fields.forEach(name => {
+          if(!name) return;
+          
+          if(YES_NO_FIELDS.includes(name)) {
+             const div = document.createElement('div'); div.className='field';
+             div.innerHTML = `<label>${name}</label><div class="radio-group"><label class="radio-label"><input type="radio" name="${name}" value="Yes" required> Yes</label><label class="radio-label"><input type="radio" name="${name}" value="No"> No</label></div>`;
+             formEl.appendChild(div);
+          } 
+          else if (/resume/i.test(name)) {
+             // RESUME HANDLING: Check if prefill has it
+             const existingUrl = prefillValues ? prefillValues[name] : null;
+             const isRequired = !existingUrl; 
+             
+             const div = document.createElement('div'); div.className='field';
+             let html = `<label>${name}</label>`;
+             
+             if (existingUrl) {
+               html += `<div class="file-existing-note">✅ Resume on file: <a href="${existingUrl}" target="_blank">View Current Resume</a></div>`;
+               html += `<div class="small" style="margin-bottom:4px;">Upload new to replace:</div>`;
+             }
+             
+             html += `<input type="file" name="${name}" accept="application/pdf" ${isRequired ? 'required' : ''}><div class="small">PDF only, max 10MB</div>`;
+             div.innerHTML = html;
+             formEl.appendChild(div);
+          } 
+          else if (/Preferred Industry|Skills/i.test(name) && MULTI_SELECT_MAP[persona]?.includes(name)) {
+             let opts = /Industry/i.test(name) ? APP_CONFIG.selectOptions.industries : APP_CONFIG.selectOptions.skills;
+             formEl.appendChild(createCheckboxList(name, opts || []));
+          } 
+          else if (/Year of Graduation|Year/i.test(name) && !/Study/i.test(name)) {
+             const div = document.createElement('div'); div.className='field';
+             let html = `<label>${name}</label><select name="${name}" required><option value="">-- Select Year --</option>`;
+             (APP_CONFIG.years || []).forEach(y => { html += `<option value="${y}">${y}</option>`; });
+             html += `</select>`;
+             div.innerHTML = html;
+             formEl.appendChild(div);
+          }
+          else if (/Year of Study/i.test(name)) {
+             const div = document.createElement('div'); div.className='field';
+             div.innerHTML = `<label>${name}</label><select name="${name}" required><option value="">-- Select Year --</option><option value="1st Year">1st Year</option><option value="2nd Year">2nd Year</option><option value="3rd Year">3rd Year</option><option value="Final Year">Final Year</option><option value="Postgraduate">Postgraduate</option></select>`;
+             formEl.appendChild(div);
+          }
+          else if (/University|College/i.test(name)) {
+             const div = document.createElement('div'); div.className='field';
+             div.innerHTML = `<label>${name}</label><input type="text" name="${name}" list="universities_list" required placeholder="Type to search...">`;
+             formEl.appendChild(div);
+          } else if (/City/i.test(name)) {
+             const div = document.createElement('div'); div.className='field';
+             div.innerHTML = `<label>${name}</label><input type="text" name="${name}" list="cities_list" required>`;
+             formEl.appendChild(div);
+          } else if (/Country/i.test(name)) {
+             const div = document.createElement('div'); div.className='field';
+             div.innerHTML = `<label>${name}</label><input type="text" name="${name}" list="countries_list" required>`;
+             formEl.appendChild(div);
+          } else if (/How Did You Hear/i.test(name)) {
+             const div = document.createElement('div'); div.className='field';
+             div.innerHTML = `<label>${name}</label><input type="text" name="${name}" list="sources_list" required>`;
+             formEl.appendChild(div);
+          } else if (/Company/i.test(name)) {
+             const div = document.createElement('div'); div.className='field';
+             div.innerHTML = `<label>${name}</label><input type="text" name="${name}" list="companies_list" required placeholder="Type to search...">`;
+             formEl.appendChild(div);
+          } else {
+             const div = document.createElement('div'); div.className='field';
+             div.innerHTML = `<label>${name}</label><input type="text" name="${name}" required>`;
+             formEl.appendChild(div);
+          }
+        });
+
+        const btn = document.createElement('button'); btn.className='btn primary'; btn.textContent='Submit';
+        formEl.appendChild(btn);
+        formContainer.appendChild(formEl);
+        if(prefillValues) populateControlsFromPrefill(formEl, prefillValues);
+      }
+
+      function handleSubmit(persona) {
+        const form = document.getElementById('personaForm');
+        if(!form.checkValidity()) { form.reportValidity(); return; }
+
+        const values = {}; const fileReads = [];
+        Array.from(form.elements).forEach(el => {
+           if(el.name && el.type !== 'submit') {
+             if(el.type === 'checkbox' && el.dataset.group === 'multi') {
+               if(!values[el.name]) values[el.name] = [];
+               if(el.checked) values[el.name].push(el.value);
+             } else if (el.type === 'file' && el.files.length > 0) {
+                const f = el.files[0];
+                const p = new Promise((resolve) => {
+                   const reader = new FileReader();
+                   reader.onload = e => resolve({ key: el.name, val: { filename: f.name, mimeType: f.type, base64: e.target.result.split(',')[1] } });
+                   reader.readAsDataURL(f);
+                });
+                fileReads.push(p);
+             } else if (el.type === 'radio') {
+                if(el.checked) values[el.name] = el.value;
+             } else {
+                values[el.name] = el.value;
+             }
+           }
+        });
+
+        Object.keys(values).forEach(k => { if(Array.isArray(values[k])) values[k] = values[k].join(', '); });
+        showMessage('Submitting...', 'success');
+
+        Promise.all(fileReads).then(files => {
+           files.forEach(f => values[f.key] = f.val);
+           const payload = { action: "upsertRecord", payload: { persona, values } };
+           
+           if(currentMode === 'new') {
+             fetch(API_URL, { method: "POST", body: JSON.stringify({ action: "emailExists", payload: { persona, email: values['Personal Email ID'] } }) })
+             .then(r=>r.json()).then(exists => {
+                if(exists) showMessage('Email already exists.', 'error');
+                else sendData(payload);
+             });
+           } else {
+             sendData(payload);
+           }
+        });
+      }
+
+      function sendData(body) {
+        fetch(API_URL, { method: "POST", body: JSON.stringify(body) })
+        .then(r => r.json())
+        .then(res => {
+           if(res.success) { 
+             let html = '<div class="success-box"><strong>' + res.message + '</strong><br/><br/>';
+             const pu = APP_CONFIG.programUrls || {};
+             html += '<div>Check out our programs:</div><div style="margin-top:12px;">';
+             html += `<a class="program-cta" href="${pu.gpi}" target="_blank">GPI</a>`;
+             html += `<a class="program-cta" href="${pu.industryTraining}" target="_blank">Industry Training</a>`;
+             html += `<a class="program-cta" href="${pu.sel}" target="_blank">SEL</a>`;
+             html += `<a class="program-cta" href="${pu.jobs}" target="_blank">Jobs</a></div></div>`;
+             messageArea.innerHTML = html;
+             formContainer.classList.add('hidden'); 
+           } else { 
+             showMessage('Error: ' + res.message, 'error'); 
+           }
+        })
+        .catch(err => showMessage('Network Error', 'error'));
+      }
+
+      fetch(API_URL + "?action=getPersonaFields").then(r=>r.json()).then(data => {
+         PERSONA_FIELDS = data;
+         Object.keys(data).forEach(p => { const opt = document.createElement('option'); opt.value = p; opt.textContent = p; personaSelect.appendChild(opt); });
+      });
+
+      fetch(API_URL + "?action=getAppConfig").then(r=>r.json()).then(cfg => { APP_CONFIG = cfg; if(cfg.logoUrl) { companyLogoImg.src = cfg.logoUrl; companyLogoImg.style.display=''; } });
+
+      personaSelect.addEventListener('change', () => { currentPersona = personaSelect.value; if(currentPersona) actionButtons.classList.remove('hidden'); });
+      btnNew.addEventListener('click', () => { currentMode = 'new'; buildFormForPersona(currentPersona, {}); });
+      btnEdit.addEventListener('click', () => { currentMode = 'edit'; editEmailArea.classList.remove('hidden'); formContainer.classList.add('hidden'); });
+      loadButton.addEventListener('click', () => {
+         const email = editEmailInput.value;
+         fetch(API_URL, { method: "POST", body: JSON.stringify({ action: "fetchRecordForEdit", payload: { persona: currentPersona, email } }) })
+         .then(r => r.json()).then(res => { if(res.found) buildFormForPersona(currentPersona, res.values); else showMessage('Record not found', 'error'); });
+      });
+    </script>
+  </body>
+</html>
