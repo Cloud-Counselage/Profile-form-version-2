@@ -292,6 +292,7 @@
             
             // --- FIXED MOBILE LOGIC ---
             if (/mobile/i.test(i.name)) {
+                // Remove extra whitespace from stored value
                 const fullPhone = String(val).trim();
                 const countryCodes = APP_CONFIG.countryCodes || [];
                 
@@ -308,7 +309,6 @@
                     // Remove the code prefix if it exists
                     for (let c of countryCodes) {
                         if (cleanPhone.startsWith(c.code)) {
-                            // +91 987... -> 987... (Handle space if present)
                             cleanPhone = cleanPhone.substring(c.code.length).trim();
                             break;
                         }
@@ -324,7 +324,10 @@
                 else if(/City/i.test(i.name)) list = APP_CONFIG.selectOptions.cities;
                 else if(/Country/i.test(i.name)) list = APP_CONFIG.selectOptions.countries;
 
-                if (list && !list.includes(val) && val !== 'Other') {
+                // Check if value is in list (ignoring case slightly for robustness)
+                const inList = list && list.some(item => String(item).toLowerCase() === String(val).toLowerCase());
+
+                if (list && !inList && val !== 'Other' && val.trim() !== '') {
                     i.value = 'Other';
                     const customInput = formEl.querySelector(`input[name="${i.name}_custom"]`);
                     if(customInput) { customInput.value = val; customInput.classList.remove('hidden'); customInput.required = true; }
@@ -336,21 +339,26 @@
           }
         });
         
-        // --- FIXED MULTI-SELECT (Don't select if empty) ---
+        // --- FIXED MULTI-SELECT LOGIC ---
         Object.keys(prefillValues).forEach(k => {
            let val = prefillValues[k];
-           // Only proceed if value is NOT empty/null
-           if (!val || String(val).trim() === "") return;
+           
+           // CRITICAL FIX: If value is null, undefined, or just commas, SKIP IT.
+           if (!val || String(val).trim() === "" || String(val).trim() === ",") return;
 
            const checkboxes = formEl.querySelectorAll(`input[type="checkbox"][name="${k}"][data-group="multi"]`);
            if(checkboxes.length > 0) {
-             const parts = String(val).split(',').map(s=>s.trim());
-             checkboxes.forEach(cb => { 
-                 if(parts.includes(cb.value.trim())) { 
-                     cb.checked = true; 
-                     cb.parentElement.classList.add('selected'); 
-                 } 
-             });
+             // Split string, but filter out any empty strings resulting from trailing commas
+             const parts = String(val).split(',').map(s=>s.trim()).filter(s => s !== "");
+             
+             if (parts.length > 0) {
+                 checkboxes.forEach(cb => { 
+                     if(parts.includes(cb.value.trim())) { 
+                         cb.checked = true; 
+                         cb.parentElement.classList.add('selected'); 
+                     } 
+                 });
+             }
            }
         });
       }
@@ -543,6 +551,7 @@
              
              else if(el.type === 'checkbox' && el.dataset.group === 'multi') {
                if(!values[el.name]) values[el.name] = [];
+               // CRITICAL FIX: Only add if checked
                if(el.checked) values[el.name].push(el.value);
              } 
              else if (el.type === 'file' && el.files.length > 0) {
@@ -579,7 +588,13 @@
 
         const mobileKey = Object.keys(values).find(k => /Mobile Number/i.test(k));
         if (mobileKey && mobileCode) { values[mobileKey] = mobileCode + " " + values[mobileKey]; }
-        Object.keys(values).forEach(k => { if(Array.isArray(values[k])) values[k] = values[k].join(', '); });
+        
+        // FIX: Join arrays, but if array is empty (no skills selected), save as ""
+        Object.keys(values).forEach(k => { 
+            if(Array.isArray(values[k])) {
+                values[k] = values[k].length > 0 ? values[k].join(', ') : "";
+            }
+        });
 
         showLoading('Submitting Application...');
 
