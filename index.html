@@ -108,7 +108,7 @@
       // ==========================================
       // ⚠️ IMPORTANT: PASTE YOUR DEPLOYED WEB APP URL HERE
       // ==========================================
-      const API_URL = "https://script.google.com/macros/s/AKfycbyEhgcSbtxSlqHXdBUDEAR7nbACGhIwqpnWpdh_VDL1h8Bs5vmDOi1TGsN0xE3j840V/exec"; 
+      const API_URL = "https://script.google.com/macros/s/AKfycbybgq6li_1ONa7SZ68RKTiPSTHsDvJkmx-RoW_rCUQpfSPxUdM7qgn971dmKA7BKdN0/exec"; 
 
       let PERSONA_FIELDS = {};
       let APP_CONFIG = {};
@@ -187,10 +187,8 @@
          if(emailIdx === -1) return;
 
          for (let i = emailIdx + 1; i < elements.length; i++) {
-             // Don't disable the submit button here, we handle it separately
              if (elements[i].type !== 'submit') {
                  elements[i].disabled = disabled;
-                 // Add visual cue
                  const wrapper = elements[i].closest('.field');
                  if(wrapper) wrapper.style.opacity = disabled ? '0.5' : '1';
              }
@@ -254,7 +252,7 @@
                 <p>We have a dedicated application form for college faculties.</p>
                 <a href="${url}" target="_blank" class="btn primary" style="display:inline-block; text-decoration:none; margin-top:10px;">Faculty Form</a>
             </div>`;
-            return; // Stop here, don't build the rest of the form
+            return; 
         }
         // -----------------------------
 
@@ -309,13 +307,11 @@
                             msgDiv.textContent = "❌ Application already exists. Please use 'Edit' mode.";
                             msgDiv.className = "validation-msg error";
                             btn.disabled = true; 
-                            // DISABLE SUBSEQUENT FIELDS
                             toggleFormFields(formEl, true);
                         } else {
                             msgDiv.textContent = "✅ Email available.";
                             msgDiv.className = "validation-msg success";
                             btn.disabled = false;
-                            // ENABLE SUBSEQUENT FIELDS
                             toggleFormFields(formEl, false);
                         }
                     })
@@ -537,7 +533,30 @@
 
       fetch(API_URL + "?action=getAppConfig").then(r=>r.json()).then(cfg => { APP_CONFIG = cfg; if(cfg.logoUrl) { companyLogoImg.src = cfg.logoUrl; companyLogoImg.style.display=''; } });
 
-      personaSelect.addEventListener('change', () => { currentPersona = personaSelect.value; if(currentPersona) actionButtons.classList.remove('hidden'); });
+      personaSelect.addEventListener('change', () => { 
+          currentPersona = personaSelect.value;
+          
+          if (!currentPersona) {
+              actionButtons.classList.add('hidden');
+              formContainer.classList.add('hidden');
+              editEmailArea.classList.add('hidden');
+              return;
+          }
+          
+          actionButtons.classList.remove('hidden');
+
+          // DYNAMIC SWITCHING
+          if (currentMode === 'new') {
+              // Automatically rebuild form for new persona if in NEW mode
+              buildFormForPersona(currentPersona, {});
+          } else if (currentMode === 'edit') {
+              // If in EDIT mode, clear form and ask for email again (safety)
+              formContainer.classList.add('hidden');
+              editEmailArea.classList.remove('hidden');
+              showMessage("Persona changed. Please load your record again.", "checking");
+          }
+      });
+
       btnNew.addEventListener('click', () => { currentMode = 'new'; buildFormForPersona(currentPersona, {}); });
       btnEdit.addEventListener('click', () => { currentMode = 'edit'; editEmailArea.classList.remove('hidden'); formContainer.classList.add('hidden'); });
       loadButton.addEventListener('click', () => {
