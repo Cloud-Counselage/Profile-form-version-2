@@ -13,8 +13,6 @@
         --text-medium: #636e72;
         --bg-color: #f0f2f5;
         --white: #ffffff;
-        --border-radius: 12px;
-        --shadow-sm: 0 4px 6px rgba(0,0,0,0.05);
         --shadow-md: 0 10px 20px rgba(0,0,0,0.1);
         --transition: all 0.3s ease;
       }
@@ -23,7 +21,7 @@
       
       body { background: var(--primary-gradient); padding: 20px; min-height: 100vh; display: flex; justify-content: center; align-items: flex-start; }
       
-      .container { width: 100%; max-width: 750px; background: var(--white); padding: 40px; border-radius: 16px; box-shadow: var(--shadow-md); margin-top: 20px; position: relative; overflow: hidden; }
+      .container { width: 100%; max-width: 750px; background: var(--white); padding: 40px; border-radius: 16px; box-shadow: var(--shadow-md); margin-top: 20px; position: relative; }
 
       /* HEADER */
       .header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid #f1f1f1; }
@@ -54,12 +52,7 @@
       /* ANIMATIONS */
       @keyframes fadeInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
       .field { margin-bottom: 20px; animation: fadeInUp 0.4s ease-out forwards; opacity: 0; }
-      /* Stagger animations */
-      .field:nth-child(1) { animation-delay: 0.05s; }
-      .field:nth-child(2) { animation-delay: 0.1s; }
-      .field:nth-child(3) { animation-delay: 0.15s; }
-      .field:nth-child(4) { animation-delay: 0.2s; }
-      .field:nth-child(n+5) { animation-delay: 0.25s; }
+      .field:nth-child(n+1) { animation-delay: 0.1s; }
 
       /* RADIO & CHECKBOX */
       .radio-group { display: flex; gap: 20px; align-items: center; }
@@ -113,9 +106,9 @@
       .card-link { 
         text-decoration: none; background: #fff; border: 1px solid #eee; border-radius: 12px; 
         padding: 20px; text-align: center; transition: var(--transition); display: flex; flex-direction: column; align-items: center; gap: 10px;
-        box-shadow: var(--shadow-sm);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
       }
-      .card-link:hover { transform: translateY(-5px); box-shadow: var(--shadow-md); border-color: var(--primary-color); }
+      .card-link:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.1); border-color: var(--primary-color); }
       .card-icon { font-size: 28px; }
       .card-title { font-weight: 700; color: var(--text-dark); font-size: 16px; }
       .card-sub { font-size: 12px; color: var(--text-medium); }
@@ -124,7 +117,7 @@
       .faculty-box { text-align: center; padding: 40px 20px; background: #f8f9fa; border-radius: 12px; border: 1px dashed #ccc; }
       .faculty-box h3 { margin-bottom: 10px; color: var(--text-dark); }
 
-      /* MOBILE RESPONSIVE */
+      /* MOBILE */
       @media (max-width: 600px) {
         .container { padding: 24px; }
         .cards-grid { grid-template-columns: 1fr; }
@@ -179,7 +172,7 @@
       // ==========================================
       // ⚠️ IMPORTANT: PASTE YOUR DEPLOYED WEB APP URL HERE
       // ==========================================
-      const API_URL = "https://script.google.com/macros/s/AKfycbybgq6li_1ONa7SZ68RKTiPSTHsDvJkmx-RoW_rCUQpfSPxUdM7qgn971dmKA7BKdN0/exec"; 
+      const API_URL = "https://script.google.com/macros/s/AKfycbyEhgcSbtxSlqHXdBUDEAR7nbACGhIwqpnWpdh_VDL1h8Bs5vmDOi1TGsN0xE3j840V/exec"; 
 
       let PERSONA_FIELDS = {};
       let APP_CONFIG = {};
@@ -218,13 +211,8 @@
       const INTERNSHIP_DURATION_OPTIONS = ['3 months', '6 months', '6 months+'];
 
       // --- UTILS ---
-      function showLoading(msg = "Loading...") {
-        loaderText.textContent = msg;
-        loader.classList.add('active');
-      }
-      function hideLoading() {
-        loader.classList.remove('active');
-      }
+      function showLoading(msg = "Loading...") { loaderText.textContent = msg; loader.classList.add('active'); }
+      function hideLoading() { loader.classList.remove('active'); }
       function showMessage(text, type='success') {
         messageArea.innerHTML = `<div class="message" style="background:${type==='error'?'#ffebee':'#e8f5e9'}; color:${type==='error'?'#c62828':'#2e7d32'}; border:1px solid ${type==='error'?'#ef9a9a':'#a5d6a7'};">${text}</div>`;
         messageArea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -235,7 +223,12 @@
         let d = document.getElementById(id);
         if (!d) { d = document.createElement('datalist'); d.id = id; document.body.appendChild(d); }
         else { d.innerHTML = ''; }
-        (items || []).forEach(it => { const o=document.createElement('option'); o.value=it; d.appendChild(o); });
+        // Ensure 'Other' is at the end if it's the University list
+        let finalList = items || [];
+        if (id === 'universities_list' && !finalList.includes('Other')) {
+            finalList = [...finalList, 'Other'];
+        }
+        finalList.forEach(it => { const o=document.createElement('option'); o.value=it; d.appendChild(o); });
       }
 
       function createCheckboxList(fieldName, options) {
@@ -280,6 +273,7 @@
         Array.from(formEl.elements).forEach(i => {
           let val = prefillValues[i.name];
           if (val === undefined || val === null) return;
+          
           if (i.type === 'checkbox' && i.dataset.group !== 'multi') { i.checked = (String(val).toLowerCase() === 'yes'); }
           else if (i.type === 'radio') { if (String(i.value).toLowerCase() === String(val).toLowerCase()) i.checked = true; }
           else if (i.type === 'date' && val.includes('/')) { const parts = val.split('/'); if(parts.length === 3) i.value = `${parts[2]}-${parts[1]}-${parts[0]}`; }
@@ -288,7 +282,21 @@
                 if (i.tagName === 'INPUT' && val.includes(' ')) { const parts = val.split(' '); if (parts.length > 1) { i.value = parts.slice(1).join(' '); } else { i.value = val; } }
                 else if (i.tagName === 'SELECT' && prefillValues['Mobile Number'] && prefillValues['Mobile Number'].includes(' ')) { const code = prefillValues['Mobile Number'].split(' ')[0]; if (code) i.value = code; }
                 else { i.value = val; }
-            } else { i.value = val; }
+            } 
+            // Handle "Other" logic in Edit Mode
+            else if ((/University|College/i.test(i.name)) && i.tagName === 'INPUT' && i.type === 'text') {
+                // If the saved value is NOT in the list, it's a custom value
+                const list = APP_CONFIG.selectOptions.universities || [];
+                if (!list.includes(val) && val !== 'Other') {
+                    // Set dropdown to Other, and show custom field
+                    i.value = 'Other';
+                    const customInput = formEl.querySelector(`input[name="${i.name}_custom"]`);
+                    if(customInput) { customInput.value = val; customInput.classList.remove('hidden'); customInput.required = true; }
+                } else {
+                    i.value = val;
+                }
+            }
+            else { i.value = val; }
           }
         });
         Object.keys(prefillValues).forEach(k => {
@@ -303,7 +311,7 @@
       function buildFormForPersona(persona, prefillValues) {
         formContainer.innerHTML = ''; 
         formContainer.classList.remove('hidden');
-        messageArea.innerHTML = ''; // clear messages
+        messageArea.innerHTML = ''; 
 
         // Faculty Logic
         if (persona === "College Faculty") {
@@ -312,7 +320,7 @@
                 <div style="font-size:40px; margin-bottom:10px;">👨‍🏫</div>
                 <h3>Welcome, College Faculty!</h3>
                 <p>We have a dedicated application portal for college faculties.</p>
-                <a href="${url}" target="_blank" class="btn primary" style="display:inline-block; text-decoration:none; margin-top:15px;">Go to Faculty Form</a>
+                <a href="${url}" target="_blank" class="btn primary" style="display:inline-block; text-decoration:none; margin-top:15px;">Faculty Form</a>
             </div>`;
             return; 
         }
@@ -325,7 +333,7 @@
         btn.className='btn primary'; btn.textContent='Submit Application'; btn.style.marginTop = '20px';
         btn.id = 'btnSubmitForm';
 
-        // Helper to render field HTML
+        // Render Fields
         fields.forEach(name => {
           if(!name) return;
           
@@ -424,15 +432,36 @@
              div.innerHTML = `<label>${name}</label><select name="${name}" required><option value="">-- Select Year --</option><option value="1st Year">1st Year</option><option value="2nd Year">2nd Year</option><option value="3rd Year">3rd Year</option><option value="Final Year">Final Year</option><option value="Postgraduate">Postgraduate</option></select>`;
              formEl.appendChild(div);
           }
+          // --- FIXED UNIVERSITY with OTHER Logic ---
           else if (/University|College|City|Country|How Did You Hear|Company/i.test(name)) {
              const div = document.createElement('div'); div.className='field';
              let listId = "";
-             if(/University/i.test(name)) listId = "universities_list";
+             if(/University|College/i.test(name)) listId = "universities_list"; // FIXED CHECK
              else if(/City/i.test(name)) listId = "cities_list";
              else if(/Country/i.test(name)) listId = "countries_list";
              else if(/How/i.test(name)) listId = "sources_list";
              else if(/Company/i.test(name)) listId = "companies_list";
-             div.innerHTML = `<label>${name}</label><input type="text" name="${name}" list="${listId}" required placeholder="Type to search...">`;
+             
+             div.innerHTML = `<label>${name}</label>
+               <input type="text" name="${name}" list="${listId}" required placeholder="Type to search...">
+               <input type="text" name="${name}_custom" class="hidden" placeholder="Please specify..." style="margin-top:8px; border-color:#3da5d9;">`;
+             
+             // Event Listener for Other Logic
+             const mainInput = div.querySelector(`input[name="${name}"]`);
+             const customInput = div.querySelector(`input[name="${name}_custom"]`);
+             
+             mainInput.addEventListener('input', function() {
+                if (this.value === 'Other') {
+                    customInput.classList.remove('hidden');
+                    customInput.required = true;
+                    customInput.focus();
+                } else {
+                    customInput.classList.add('hidden');
+                    customInput.required = false;
+                    customInput.value = '';
+                }
+             });
+
              formEl.appendChild(div);
           } 
           else {
@@ -454,13 +483,17 @@
         const values = {}; const fileReads = [];
         let mobileCode = "";
         
+        // 1. Gather all basic values
         Array.from(form.elements).forEach(el => {
-           if(el.name && el.type !== 'submit' && !el.disabled) {
+           if(el.name && el.type !== 'submit' && !el.disabled && !el.name.endsWith('_custom')) {
+             
              if (el.name === "Mobile Country Code") { mobileCode = el.value; }
+             
              else if(el.type === 'checkbox' && el.dataset.group === 'multi') {
                if(!values[el.name]) values[el.name] = [];
                if(el.checked) values[el.name].push(el.value);
-             } else if (el.type === 'file' && el.files.length > 0) {
+             } 
+             else if (el.type === 'file' && el.files.length > 0) {
                 const f = el.files[0];
                 const p = new Promise((resolve) => {
                    const reader = new FileReader();
@@ -468,12 +501,26 @@
                    reader.readAsDataURL(f);
                 });
                 fileReads.push(p);
-             } else if (el.type === 'radio') {
+             } 
+             else if (el.type === 'radio') {
                 if(el.checked) values[el.name] = el.value;
-             } else if (el.type === 'date') {
+             } 
+             else if (el.type === 'date') {
                 if (el.value) { const parts = el.value.split('-'); if(parts.length === 3) values[el.name] = `${parts[2]}/${parts[1]}/${parts[0]}`; }
-             } else {
-                values[el.name] = el.value;
+             } 
+             // Special Check for "Other" Fields
+             else {
+                if (el.value === 'Other') {
+                    // Grab the value from the custom input instead
+                    const customEl = form.querySelector(`input[name="${el.name}_custom"]`);
+                    if (customEl && customEl.value) {
+                        values[el.name] = customEl.value;
+                    } else {
+                        values[el.name] = 'Other'; // Fallback
+                    }
+                } else {
+                    values[el.name] = el.value;
+                }
              }
            }
         });
@@ -489,7 +536,6 @@
            const payload = { action: "upsertRecord", payload: { persona, values } };
            
            if(currentMode === 'new') {
-             // Final check before submit
              fetch(API_URL, { method: "POST", body: JSON.stringify({ action: "emailExists", payload: { persona, email: values['Personal Email ID'] } }) })
              .then(r=>r.json()).then(exists => {
                 if(exists) {
@@ -512,7 +558,6 @@
            hideLoading();
            if(res.success) { 
              const pu = APP_CONFIG.programUrls || {};
-             // New Card Grid Success Screen
              const successHTML = `
                <div class="success-box">
                  <span class="success-icon">🎉</span>
@@ -520,26 +565,10 @@
                  <p class="success-desc">${res.message}</p>
                  <p style="font-weight:600; color:#2d3436; margin-top:20px;">Explore Opportunities:</p>
                  <div class="cards-grid">
-                   <a href="${pu.gpi}" target="_blank" class="card-link">
-                     <span class="card-icon">🌍</span>
-                     <span class="card-title">GPI Program</span>
-                     <span class="card-sub">Global Project Initiative</span>
-                   </a>
-                   <a href="${pu.industryTraining}" target="_blank" class="card-link">
-                     <span class="card-icon">🛠️</span>
-                     <span class="card-title">Industry Training</span>
-                     <span class="card-sub">Hands-on Technical Skills</span>
-                   </a>
-                   <a href="${pu.sel}" target="_blank" class="card-link">
-                     <span class="card-icon">🚀</span>
-                     <span class="card-title">SEL Program</span>
-                     <span class="card-sub">Student Engagement Learning</span>
-                   </a>
-                   <a href="${pu.jobs}" target="_blank" class="card-link">
-                     <span class="card-icon">💼</span>
-                     <span class="card-title">Jobs</span>
-                     <span class="card-sub">Career Opportunities</span>
-                   </a>
+                   <a href="${pu.gpi}" target="_blank" class="card-link"><span class="card-icon">🌍</span><span class="card-title">GPI Program</span><span class="card-sub">Global Project Initiative</span></a>
+                   <a href="${pu.industryTraining}" target="_blank" class="card-link"><span class="card-icon">🛠️</span><span class="card-title">Industry Training</span><span class="card-sub">Hands-on Technical Skills</span></a>
+                   <a href="${pu.sel}" target="_blank" class="card-link"><span class="card-icon">🚀</span><span class="card-title">SEL Program</span><span class="card-sub">Student Engagement Learning</span></a>
+                   <a href="${pu.jobs}" target="_blank" class="card-link"><span class="card-icon">💼</span><span class="card-title">Jobs</span><span class="card-sub">Career Opportunities</span></a>
                  </div>
                </div>
              `;
@@ -570,18 +599,13 @@
             createDatalist('companies_list', APP_CONFIG.selectOptions.companies);
             createDatalist('sources_list', APP_CONFIG.selectOptions.sources);
          }
-         // Populate Dropdown
-         Object.keys(fields).forEach(p => { 
-             const opt = document.createElement('option'); opt.value = p; opt.textContent = p; 
-             personaSelect.appendChild(opt); 
-         });
+         Object.keys(fields).forEach(p => { const opt = document.createElement('option'); opt.value = p; opt.textContent = p; personaSelect.appendChild(opt); });
          hideLoading();
       }).catch(e => {
          hideLoading();
          showMessage("Failed to load form. Please refresh.", "error");
       });
 
-      // Events
       personaSelect.addEventListener('change', () => { 
           currentPersona = personaSelect.value;
           if (!currentPersona) {
@@ -589,7 +613,6 @@
               return;
           }
           actionButtons.classList.remove('hidden');
-          // Dynamic Switch
           if (currentMode === 'new') { buildFormForPersona(currentPersona, {}); } 
           else if (currentMode === 'edit') { 
               formContainer.classList.add('hidden'); 
