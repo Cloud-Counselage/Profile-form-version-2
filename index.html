@@ -96,7 +96,7 @@
       // ==========================================
       // ⚠️ IMPORTANT: PASTE YOUR DEPLOYED WEB APP URL HERE
       // ==========================================
-      const API_URL = "https://script.google.com/macros/s/AKfycbybgq6li_1ONa7SZ68RKTiPSTHsDvJkmx-RoW_rCUQpfSPxUdM7qgn971dmKA7BKdN0/exec"; 
+      const API_URL = "https://script.google.com/macros/s/AKfycbyEhgcSbtxSlqHXdBUDEAR7nbACGhIwqpnWpdh_VDL1h8Bs5vmDOi1TGsN0xE3j840V/exec"; 
 
       let PERSONA_FIELDS = {};
       let APP_CONFIG = {};
@@ -230,7 +230,7 @@
         fields.forEach(name => {
           if(!name) return;
           
-          // 1. Terms & Conditions (Special Logic Restored)
+          // 1. Terms & Conditions
           if (/^\s*Terms\s*&\s*Conditions\s*$/i.test(name)) {
              const div = document.createElement('div'); div.className='field';
              div.innerHTML = `<label>Do you agree with our terms & conditions?</label>
@@ -261,12 +261,19 @@
              div.innerHTML = html;
              formEl.appendChild(div);
           } 
-          // 4. Multi-Selects
+          // 4. Portfolio / GitHub (OPTIONAL)
+          else if (/Portfolio/i.test(name)) {
+             const div = document.createElement('div'); div.className='field';
+             // NO 'required', added optional text
+             div.innerHTML = `<label>${name} <span style="font-weight:normal; color:#666; font-size:13px;">(Optional)</span></label><input type="text" name="${name}" placeholder="https://...">`;
+             formEl.appendChild(div);
+          }
+          // 5. Multi-Selects
           else if (/Preferred Industry|Skills/i.test(name) && MULTI_SELECT_MAP[persona]?.includes(name)) {
              let opts = /Industry/i.test(name) ? APP_CONFIG.selectOptions.industries : APP_CONFIG.selectOptions.skills;
              formEl.appendChild(createCheckboxList(name, opts || []));
           } 
-          // 5. Internship Duration (Dropdown Restored)
+          // 6. Internship Duration
           else if (/Preferred Internship Duration/i.test(name)) {
              const div = document.createElement('div'); div.className='field';
              let html = `<label>${name}</label><select name="${name}" required><option value="">-- Select Duration --</option>`;
@@ -275,7 +282,7 @@
              div.innerHTML = html;
              formEl.appendChild(div);
           }
-          // 6. Mobile Number
+          // 7. Mobile Number
           else if (/Mobile/i.test(name)) {
              const div = document.createElement('div'); div.className='field';
              let codeOpts = `<option value="">Code</option>`;
@@ -283,13 +290,22 @@
              div.innerHTML = `<label>${name}</label><div class="phone-row"><select name="Mobile Country Code" required>${codeOpts}</select><input type="tel" name="${name}" placeholder="Phone Number" required></div>`;
              formEl.appendChild(div);
           }
-          // 7. Date of Birth
+          // 8. Date of Birth
           else if (/Date of Birth/i.test(name)) {
              const div = document.createElement('div'); div.className='field';
              div.innerHTML = `<label>${name}</label><input type="date" name="${name}" required max="${new Date().toISOString().split('T')[0]}">`;
              formEl.appendChild(div);
           }
-          // 8. Year Dropdowns
+          // 9. DEGREE (Now a Dropdown!)
+          else if (/Degree/i.test(name)) {
+             const div = document.createElement('div'); div.className='field';
+             let html = `<label>${name}</label><select name="${name}" required><option value="">-- Select Degree --</option>`;
+             (APP_CONFIG.degrees || []).forEach(d => { html += `<option value="${d}">${d}</option>`; });
+             html += `</select>`;
+             div.innerHTML = html;
+             formEl.appendChild(div);
+          }
+          // 10. Year Dropdowns
           else if (/Year of Graduation|Year/i.test(name) && !/Study/i.test(name)) {
              const div = document.createElement('div'); div.className='field';
              let html = `<label>${name}</label><select name="${name}" required><option value="">-- Select Year --</option>`;
@@ -303,7 +319,7 @@
              div.innerHTML = `<label>${name}</label><select name="${name}" required><option value="">-- Select Year --</option><option value="1st Year">1st Year</option><option value="2nd Year">2nd Year</option><option value="3rd Year">3rd Year</option><option value="Final Year">Final Year</option><option value="Postgraduate">Postgraduate</option></select>`;
              formEl.appendChild(div);
           }
-          // 9. Autocompletes
+          // 11. Autocompletes
           else if (/University|College/i.test(name)) {
              const div = document.createElement('div'); div.className='field';
              div.innerHTML = `<label>${name}</label><input type="text" name="${name}" list="universities_list" required placeholder="Type to search...">`;
@@ -325,7 +341,7 @@
              div.innerHTML = `<label>${name}</label><input type="text" name="${name}" list="companies_list" required placeholder="Type to search...">`;
              formEl.appendChild(div);
           } 
-          // 10. Default Text Input
+          // 12. Default Text Input
           else {
              const div = document.createElement('div'); div.className='field';
              div.innerHTML = `<label>${name}</label><input type="text" name="${name}" required>`;
