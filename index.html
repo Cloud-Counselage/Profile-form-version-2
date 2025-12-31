@@ -31,7 +31,7 @@
       .btn.primary:disabled{background:#ccc;cursor:not-allowed;}
       .btn.ghost{background:#fff;border:2px solid var(--primary-color);color:var(--primary-color)}
       .hidden{display:none!important}
-      .field{margin-bottom:18px}
+      .field{margin-bottom:18px; transition: opacity 0.3s ease;}
       .radio-group{display:flex;gap:12px;align-items:center}
       .radio-label{display:flex;align-items:center;gap:8px;cursor:pointer}
       .radio-label input[type="radio"]{margin:0}
@@ -42,7 +42,6 @@
       .file-existing-note { font-size: 13px; color: #2e7d32; margin-top: 6px; display: flex; align-items: center; gap: 6px; }
       .file-existing-note a { color: #2e7d32; font-weight: 600; }
       
-      /* Validation Status Styles */
       .validation-msg { font-size: 13px; margin-top: 5px; font-weight: 600; min-height: 18px; }
       .validation-msg.error { color: var(--error-color); }
       .validation-msg.success { color: var(--success-color); }
@@ -63,6 +62,10 @@
       .hint { font-size:12px; color:#666; margin-top:6px; }
       
       a.small-link { color: var(--primary-color); text-decoration: none; }
+      
+      /* Faculty Box */
+      .faculty-box { text-align: center; padding: 30px; background: #f9f9f9; border-radius: 8px; border: 1px solid #ddd; }
+      .faculty-box h3 { margin-bottom: 12px; color: var(--text-dark); }
     </style>
   </head>
   <body>
@@ -176,6 +179,24 @@
         return wrap;
       }
 
+      // Helper to disable/enable all fields AFTER the email field
+      function toggleFormFields(form, disabled) {
+         const elements = Array.from(form.elements);
+         // Find index of email field
+         const emailIdx = elements.findIndex(el => el.name === "Personal Email ID");
+         if(emailIdx === -1) return;
+
+         for (let i = emailIdx + 1; i < elements.length; i++) {
+             // Don't disable the submit button here, we handle it separately
+             if (elements[i].type !== 'submit') {
+                 elements[i].disabled = disabled;
+                 // Add visual cue
+                 const wrapper = elements[i].closest('.field');
+                 if(wrapper) wrapper.style.opacity = disabled ? '0.5' : '1';
+             }
+         }
+      }
+
       function populateControlsFromPrefill(formEl, prefillValues) {
         if (!prefillValues) return;
         
@@ -222,12 +243,25 @@
       }
 
       function buildFormForPersona(persona, prefillValues) {
-        formContainer.innerHTML = ''; formContainer.classList.remove('hidden');
+        formContainer.innerHTML = ''; 
+        formContainer.classList.remove('hidden');
+
+        // --- COLLEGE FACULTY LOGIC ---
+        if (persona === "College Faculty") {
+            const url = APP_CONFIG.collegeFacultyFormUrl || "#";
+            formContainer.innerHTML = `<div class="faculty-box">
+                <h3>College Faculty Registration</h3>
+                <p>Please use our dedicated portal for faculty registration.</p>
+                <a href="${url}" target="_blank" class="btn primary" style="display:inline-block; text-decoration:none; margin-top:10px;">Go to Faculty Form</a>
+            </div>`;
+            return; // Stop here, don't build the rest of the form
+        }
+        // -----------------------------
+
         const fields = PERSONA_FIELDS[persona] || [];
         const formEl = document.createElement('form'); formEl.id='personaForm';
         formEl.onsubmit = function(e){ e.preventDefault(); handleSubmit(persona); };
 
-        // Create submit button reference (to disable it later)
         const btn = document.createElement('button'); 
         btn.className='btn primary'; 
         btn.textContent='Submit';
@@ -245,7 +279,7 @@
         fields.forEach(name => {
           if(!name) return;
           
-          // --- 1. SPECIAL LOGIC FOR EMAIL CHECK (REAL-TIME) ---
+          // 1. EMAIL - WITH DISABLE LOGIC
           if (name === "Personal Email ID") {
              const div = document.createElement('div'); div.className='field';
              div.innerHTML = `<label>${name}</label>
@@ -253,7 +287,6 @@
                               <div id="emailValidationMsg" class="validation-msg"></div>`;
              formEl.appendChild(div);
 
-             // Only attach the real-time check if we are in "NEW" mode
              if (currentMode === 'new') {
                  const emailInput = div.querySelector('input');
                  const msgDiv = div.querySelector('#emailValidationMsg');
@@ -262,10 +295,9 @@
                     const email = this.value.trim();
                     if (!email) { msgDiv.textContent = ''; return; }
                     
-                    // Visual "Checking..." state
                     msgDiv.textContent = "Checking availability...";
                     msgDiv.className = "validation-msg checking";
-                    btn.disabled = true; // Disable submit while checking
+                    btn.disabled = true; 
 
                     fetch(API_URL, { 
                         method: "POST", 
@@ -274,13 +306,17 @@
                     .then(r => r.json())
                     .then(exists => {
                         if (exists) {
-                            msgDiv.textContent = "❌ Application already exists for this email. Please use 'Edit' mode.";
+                            msgDiv.textContent = "❌ Application already exists. Please use 'Edit' mode.";
                             msgDiv.className = "validation-msg error";
-                            btn.disabled = true; // Keep disabled
+                            btn.disabled = true; 
+                            // DISABLE SUBSEQUENT FIELDS
+                            toggleFormFields(formEl, true);
                         } else {
                             msgDiv.textContent = "✅ Email available.";
                             msgDiv.className = "validation-msg success";
-                            btn.disabled = false; // Enable submit
+                            btn.disabled = false;
+                            // ENABLE SUBSEQUENT FIELDS
+                            toggleFormFields(formEl, false);
                         }
                     })
                     .catch(() => {
@@ -290,8 +326,6 @@
                  });
              }
           }
-          // ---------------------------------------------------
-
           // 2. Terms & Conditions
           else if (/^\s*Terms\s*&\s*Conditions\s*$/i.test(name)) {
              const div = document.createElement('div'); div.className='field';
@@ -326,7 +360,6 @@
           // 5. Portfolio / GitHub (OPTIONAL)
           else if (/Portfolio/i.test(name)) {
              const div = document.createElement('div'); div.className='field';
-             // NO 'required', added optional text
              div.innerHTML = `<label>${name} <span style="font-weight:normal; color:#666; font-size:13px;">(Optional)</span></label><input type="text" name="${name}" placeholder="https://...">`;
              formEl.appendChild(div);
           }
@@ -424,7 +457,7 @@
         let mobileCode = "";
         
         Array.from(form.elements).forEach(el => {
-           if(el.name && el.type !== 'submit') {
+           if(el.name && el.type !== 'submit' && !el.disabled) {
              if (el.name === "Mobile Country Code") {
                 mobileCode = el.value;
              } else if(el.type === 'checkbox' && el.dataset.group === 'multi') {
@@ -461,7 +494,6 @@
            files.forEach(f => values[f.key] = f.val);
            const payload = { action: "upsertRecord", payload: { persona, values } };
            
-           // Double-check email before final send if in NEW mode
            if(currentMode === 'new') {
              fetch(API_URL, { method: "POST", body: JSON.stringify({ action: "emailExists", payload: { persona, email: values['Personal Email ID'] } }) })
              .then(r=>r.json()).then(exists => {
