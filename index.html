@@ -292,11 +292,13 @@
             
             // --- FIXED MOBILE LOGIC ---
             if (/mobile/i.test(i.name)) {
-                // Remove extra whitespace from stored value
+                // Ensure value is treated as string and trimmed
                 const fullPhone = String(val).trim();
                 const countryCodes = APP_CONFIG.countryCodes || [];
                 
                 if (i.tagName === 'SELECT') {
+                    // Default to empty first
+                    i.value = "";
                     // Try to find if phone starts with any known code
                     for (let c of countryCodes) {
                         if (fullPhone.startsWith(c.code)) {
@@ -324,7 +326,6 @@
                 else if(/City/i.test(i.name)) list = APP_CONFIG.selectOptions.cities;
                 else if(/Country/i.test(i.name)) list = APP_CONFIG.selectOptions.countries;
 
-                // Check if value is in list (ignoring case slightly for robustness)
                 const inList = list && list.some(item => String(item).toLowerCase() === String(val).toLowerCase());
 
                 if (list && !inList && val !== 'Other' && val.trim() !== '') {
@@ -343,16 +344,17 @@
         Object.keys(prefillValues).forEach(k => {
            let val = prefillValues[k];
            
-           // CRITICAL FIX: If value is null, undefined, or just commas, SKIP IT.
-           if (!val || String(val).trim() === "" || String(val).trim() === ",") return;
+           // CRITICAL FIX: If value is null, undefined, or empty string, DO NOTHING (Select nothing)
+           if (!val || String(val).trim() === "") return;
 
            const checkboxes = formEl.querySelectorAll(`input[type="checkbox"][name="${k}"][data-group="multi"]`);
            if(checkboxes.length > 0) {
-             // Split string, but filter out any empty strings resulting from trailing commas
+             // Split string, filter out empty strings
              const parts = String(val).split(',').map(s=>s.trim()).filter(s => s !== "");
              
              if (parts.length > 0) {
                  checkboxes.forEach(cb => { 
+                     // Exact match check
                      if(parts.includes(cb.value.trim())) { 
                          cb.checked = true; 
                          cb.parentElement.classList.add('selected'); 
