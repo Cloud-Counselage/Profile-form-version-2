@@ -173,7 +173,7 @@
       // ==========================================
       // ⚠️ IMPORTANT: PASTE YOUR DEPLOYED WEB APP URL HERE
       // ==========================================
-      const API_URL = "https://script.google.com/macros/s/AKfycbyEhgcSbtxSlqHXdBUDEAR7nbACGhIwqpnWpdh_VDL1h8Bs5vmDOi1TGsN0xE3j840V/exec"; 
+      const API_URL = "https://script.google.com/macros/s/AKfycbwvaazmGsV3eTFReZXVvDn_SsGMpPoAjpEY6m_J_96zP1S-vBCmyLQhDKmS6O2YAoO6Ig/exec"; 
 
       let PERSONA_FIELDS = {};
       let APP_CONFIG = {};
@@ -450,7 +450,7 @@
              else if(/Company/i.test(name)) listId = "companies_list";
              
              let hintHTML = "";
-             // Only show the "Other" hint for Uni, City, Country
+             // Show hint for Uni, City, Country
              if (/University|College|City|Country/i.test(name)) {
                  hintHTML = `<div class="other-hint">Can't find your option? Select 'Other' from the list to enter it manually.</div>`;
              }
