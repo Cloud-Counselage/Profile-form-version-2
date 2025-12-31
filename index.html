@@ -77,6 +77,7 @@
       .hint { font-size: 12px; color: var(--text-medium); margin-top: 4px; }
       .file-existing-note { font-size: 13px; color: #2e7d32; margin-top: 6px; font-weight: 500; }
       .file-existing-note a { color: #2e7d32; text-decoration: underline; }
+      .other-hint { font-size: 12px; color: #e65100; margin-top: 4px; font-style: italic; }
 
       /* VALIDATION MESSAGES */
       .validation-msg { font-size: 13px; margin-top: 6px; font-weight: 600; min-height: 20px; display: flex; align-items: center; gap: 6px; }
@@ -223,11 +224,14 @@
         let d = document.getElementById(id);
         if (!d) { d = document.createElement('datalist'); d.id = id; document.body.appendChild(d); }
         else { d.innerHTML = ''; }
-        // Ensure 'Other' is at the end if it's the University list
+        
+        // AUTO-ADD "Other" to these specific lists
         let finalList = items || [];
-        if (id === 'universities_list' && !finalList.includes('Other')) {
+        const listsWithOther = ['universities_list', 'cities_list', 'countries_list'];
+        if (listsWithOther.includes(id) && !finalList.includes('Other')) {
             finalList = [...finalList, 'Other'];
         }
+        
         finalList.forEach(it => { const o=document.createElement('option'); o.value=it; d.appendChild(o); });
       }
 
@@ -284,11 +288,14 @@
                 else { i.value = val; }
             } 
             // Handle "Other" logic in Edit Mode
-            else if ((/University|College/i.test(i.name)) && i.tagName === 'INPUT' && i.type === 'text') {
-                // If the saved value is NOT in the list, it's a custom value
-                const list = APP_CONFIG.selectOptions.universities || [];
-                if (!list.includes(val) && val !== 'Other') {
-                    // Set dropdown to Other, and show custom field
+            else if ((/University|College|City|Country/i.test(i.name)) && i.tagName === 'INPUT' && i.type === 'text') {
+                // If saved value isn't in the list, show custom input
+                let list = [];
+                if(/University|College/i.test(i.name)) list = APP_CONFIG.selectOptions.universities;
+                else if(/City/i.test(i.name)) list = APP_CONFIG.selectOptions.cities;
+                else if(/Country/i.test(i.name)) list = APP_CONFIG.selectOptions.countries;
+
+                if (list && !list.includes(val) && val !== 'Other') {
                     i.value = 'Other';
                     const customInput = formEl.querySelector(`input[name="${i.name}_custom"]`);
                     if(customInput) { customInput.value = val; customInput.classList.remove('hidden'); customInput.required = true; }
@@ -432,21 +439,27 @@
              div.innerHTML = `<label>${name}</label><select name="${name}" required><option value="">-- Select Year --</option><option value="1st Year">1st Year</option><option value="2nd Year">2nd Year</option><option value="3rd Year">3rd Year</option><option value="Final Year">Final Year</option><option value="Postgraduate">Postgraduate</option></select>`;
              formEl.appendChild(div);
           }
-          // --- FIXED UNIVERSITY with OTHER Logic ---
+          // --- AUTOCOMPLETE WITH 'OTHER' LOGIC ---
           else if (/University|College|City|Country|How Did You Hear|Company/i.test(name)) {
              const div = document.createElement('div'); div.className='field';
              let listId = "";
-             if(/University|College/i.test(name)) listId = "universities_list"; // FIXED CHECK
+             if(/University|College/i.test(name)) listId = "universities_list"; 
              else if(/City/i.test(name)) listId = "cities_list";
              else if(/Country/i.test(name)) listId = "countries_list";
              else if(/How/i.test(name)) listId = "sources_list";
              else if(/Company/i.test(name)) listId = "companies_list";
              
+             let hintHTML = "";
+             // Only show the "Other" hint for Uni, City, Country
+             if (/University|College|City|Country/i.test(name)) {
+                 hintHTML = `<div class="other-hint">Can't find your option? Select 'Other' from the list to enter it manually.</div>`;
+             }
+
              div.innerHTML = `<label>${name}</label>
                <input type="text" name="${name}" list="${listId}" required placeholder="Type to search...">
+               ${hintHTML}
                <input type="text" name="${name}_custom" class="hidden" placeholder="Please specify..." style="margin-top:8px; border-color:#3da5d9;">`;
              
-             // Event Listener for Other Logic
              const mainInput = div.querySelector(`input[name="${name}"]`);
              const customInput = div.querySelector(`input[name="${name}_custom"]`);
              
@@ -516,7 +529,7 @@
                     if (customEl && customEl.value) {
                         values[el.name] = customEl.value;
                     } else {
-                        values[el.name] = 'Other'; // Fallback
+                        values[el.name] = 'Other'; 
                     }
                 } else {
                     values[el.name] = el.value;
