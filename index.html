@@ -88,7 +88,7 @@
       <div id="workflowArea">
         <div id="facultyCtaArea" class="hidden" style="margin:12px 0;"></div>
         <p id="globalDescription" class="small" style="margin-top:8px;">
-          Filling this profile form helps us understand your skills, goals, and interests so we can connect you to the right industry training, mentorship, internships, jobs, and career-building opportunities.
+          Filling this profile form helps us understand your skills, goals, and interests so we can connect you to the right industry training, mentorship, internships, jobs, and career-building opportunities. Your details enable Cloud Counselage and IAC to personalize your journey and match you with programs, guidance, and resources that support your professional growth and future success.
         </p>
 
         <div id="editEmailArea" class="hidden" style="margin-top:12px;">
@@ -250,9 +250,9 @@
         if (persona === "College Faculty") {
             const url = APP_CONFIG.collegeFacultyFormUrl || "#";
             formContainer.innerHTML = `<div class="faculty-box">
-                <h3>College Faculty Registration</h3>
-                <p>Please use our dedicated portal for faculty registration.</p>
-                <a href="${url}" target="_blank" class="btn primary" style="display:inline-block; text-decoration:none; margin-top:10px;">Go to Faculty Form</a>
+                <h3>👨‍🏫 Welcome, College Faculty!</h3>
+                <p>We have a dedicated application form for college faculties.</p>
+                <a href="${url}" target="_blank" class="btn primary" style="display:inline-block; text-decoration:none; margin-top:10px;">Faculty Form</a>
             </div>`;
             return; // Stop here, don't build the rest of the form
         }
