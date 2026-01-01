@@ -216,7 +216,7 @@
       function hideLoading() { loader.classList.remove('active'); }
       function showMessage(text, type='success') {
         // Handle multiline debug messages gracefully
-        const formattedText = String(text).replace(/\n/g, '<br>');
+        const formattedText = String(text || "Unknown Error").replace(/\n/g, '<br>');
         messageArea.innerHTML = `<div class="message" style="background:${type==='error'?'#ffebee':'#e8f5e9'}; color:${type==='error'?'#c62828':'#2e7d32'}; border:1px solid ${type==='error'?'#ef9a9a':'#a5d6a7'};">${formattedText}</div>`;
         messageArea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }
@@ -274,7 +274,8 @@
       }
 
       function populateControlsFromPrefill(formEl, prefillValues) {
-        if (!prefillValues) return;
+        // Safety Check 1: Ensure values exist
+        if (!prefillValues || typeof prefillValues !== 'object') return;
         
         Array.from(formEl.elements).forEach(i => {
           let val = prefillValues[i.name];
@@ -287,12 +288,18 @@
              if (String(i.value).toLowerCase() === String(val).toLowerCase()) i.checked = true; 
           }
           else if (i.type === 'date') {
-             if (val && val.includes('-') && val.length >= 10) { i.value = val.substring(0, 10); }
-             else if (val && val.includes('/')) { const parts = val.split('/'); if(parts.length === 3) i.value = `${parts[2]}-${parts[1]}-${parts[0]}`; }
+             if (val && String(val).includes('-') && val.length >= 10) { i.value = val.substring(0, 10); }
+             // Handle case where sheet sends date object or weird format
+             else if (val) {
+                 try {
+                    const d = new Date(val);
+                    if(!isNaN(d)) i.value = d.toISOString().split('T')[0];
+                 } catch(e) {}
+             }
           }
           else if (i.type !== 'file') {
             
-            // --- FIXED MOBILE LOGIC ---
+            // --- FIXED MOBILE LOGIC (With Safety) ---
             if (/Mobile Number/i.test(i.name)) {
                 if (String(val).startsWith("'")) {
                     i.value = String(val).substring(1);
@@ -329,7 +336,7 @@
           }
         });
         
-        // --- FIXED MULTI-SELECT LOGIC ---
+        // --- FIXED MULTI-SELECT LOGIC (With Safety) ---
         Object.keys(prefillValues).forEach(k => {
            let val = prefillValues[k];
            
@@ -682,11 +689,11 @@
                  try {
                     buildFormForPersona(currentPersona, res.values);
                  } catch (err) {
+                    // CATCH THE CRASH HERE
                     showMessage("UI RENDER ERROR: " + err.message, 'error');
                  }
              }
              else { 
-               // ⚠️ IMPORTANT: Show real message from backend
                showMessage(res.message, 'error'); 
              }
          });
