@@ -173,7 +173,7 @@
       // ==========================================
       // ⚠️ IMPORTANT: PASTE YOUR DEPLOYED WEB APP URL HERE
       // ==========================================
-      const API_URL = "https://script.google.com/macros/s/AKfycbz2HRSY3ohXqHGUs-ahCWB82VZev8q2XFtSFH2vfTSHr_k3QDiq8pEDii3QzdLaFbiMqg/exec"; 
+      const API_URL = "https://script.google.com/macros/s/AKfycbxR1GoCK-OILKKliRcnzqN8L5VQSeNnfIUrE1BiGWY11kkbng8gjKTDhWA55wgYAerglw/exec"; 
 
       let PERSONA_FIELDS = {};
       let APP_CONFIG = {};
@@ -215,9 +215,7 @@
       function showLoading(msg = "Loading...") { loaderText.textContent = msg; loader.classList.add('active'); }
       function hideLoading() { loader.classList.remove('active'); }
       function showMessage(text, type='success') {
-        // Handle multiline debug messages gracefully
-        const formattedText = String(text || "Unknown Error").replace(/\n/g, '<br>');
-        messageArea.innerHTML = `<div class="message" style="background:${type==='error'?'#ffebee':'#e8f5e9'}; color:${type==='error'?'#c62828':'#2e7d32'}; border:1px solid ${type==='error'?'#ef9a9a':'#a5d6a7'};">${formattedText}</div>`;
+        messageArea.innerHTML = `<div class="message" style="background:${type==='error'?'#ffebee':'#e8f5e9'}; color:${type==='error'?'#c62828':'#2e7d32'}; border:1px solid ${type==='error'?'#ef9a9a':'#a5d6a7'};">${text}</div>`;
         messageArea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }
       function sanitizeId(s) { return String(s).replace(/[^a-z0-9\-_]/ig,'_'); }
@@ -274,8 +272,7 @@
       }
 
       function populateControlsFromPrefill(formEl, prefillValues) {
-        // Safety Check 1: Ensure values exist
-        if (!prefillValues || typeof prefillValues !== 'object') return;
+        if (!prefillValues) return;
         
         Array.from(formEl.elements).forEach(i => {
           let val = prefillValues[i.name];
@@ -288,32 +285,39 @@
              if (String(i.value).toLowerCase() === String(val).toLowerCase()) i.checked = true; 
           }
           else if (i.type === 'date') {
-             if (val && String(val).includes('-') && val.length >= 10) { i.value = val.substring(0, 10); }
-             // Handle case where sheet sends date object or weird format
-             else if (val) {
-                 try {
-                    const d = new Date(val);
-                    if(!isNaN(d)) i.value = d.toISOString().split('T')[0];
-                 } catch(e) {}
-             }
+             if (val.includes('-') && val.length >= 10) { i.value = val.substring(0, 10); }
+             else if (val.includes('/')) { const parts = val.split('/'); if(parts.length === 3) i.value = `${parts[2]}-${parts[1]}-${parts[0]}`; }
           }
           else if (i.type !== 'file') {
             
-            // --- FIXED MOBILE LOGIC (With Safety) ---
-            if (/Mobile Number/i.test(i.name)) {
-                if (String(val).startsWith("'")) {
-                    i.value = String(val).substring(1);
-                } else {
-                    i.value = val;
+            // --- FIXED MOBILE LOGIC ---
+            if (/mobile/i.test(i.name)) {
+                // Ensure value is treated as string and trimmed
+                const fullPhone = String(val).trim();
+                const countryCodes = APP_CONFIG.countryCodes || [];
+                
+                if (i.tagName === 'SELECT') {
+                    // Default to empty first
+                    i.value = "";
+                    // Try to find if phone starts with any known code
+                    for (let c of countryCodes) {
+                        if (fullPhone.startsWith(c.code)) {
+                            i.value = c.code; 
+                            break;
+                        }
+                    }
+                } else if (i.tagName === 'INPUT') {
+                    let cleanPhone = fullPhone;
+                    // Remove the code prefix if it exists
+                    for (let c of countryCodes) {
+                        if (cleanPhone.startsWith(c.code)) {
+                            cleanPhone = cleanPhone.substring(c.code.length).trim();
+                            break;
+                        }
+                    }
+                    i.value = cleanPhone;
                 }
             } 
-            else if (/Mobile Country Code/i.test(i.name)) {
-                if (String(val).startsWith("'")) {
-                    i.value = String(val).substring(1);
-                } else {
-                    i.value = val;
-                }
-            }
             
             // Handle "Other" logic in Edit Mode
             else if ((/University|College|City|Country/i.test(i.name)) && i.tagName === 'INPUT' && i.type === 'text') {
@@ -324,7 +328,7 @@
 
                 const inList = list && list.some(item => String(item).toLowerCase() === String(val).toLowerCase());
 
-                if (list && !inList && val !== 'Other' && String(val).trim() !== '') {
+                if (list && !inList && val !== 'Other' && val.trim() !== '') {
                     i.value = 'Other';
                     const customInput = formEl.querySelector(`input[name="${i.name}_custom"]`);
                     if(customInput) { customInput.value = val; customInput.classList.remove('hidden'); customInput.required = true; }
@@ -336,17 +340,21 @@
           }
         });
         
-        // --- FIXED MULTI-SELECT LOGIC (With Safety) ---
+        // --- FIXED MULTI-SELECT LOGIC ---
         Object.keys(prefillValues).forEach(k => {
            let val = prefillValues[k];
            
+           // CRITICAL FIX: If value is null, undefined, or empty string, DO NOTHING (Select nothing)
            if (!val || String(val).trim() === "") return;
 
            const checkboxes = formEl.querySelectorAll(`input[type="checkbox"][name="${k}"][data-group="multi"]`);
            if(checkboxes.length > 0) {
+             // Split string, filter out empty strings
              const parts = String(val).split(',').map(s=>s.trim()).filter(s => s !== "");
+             
              if (parts.length > 0) {
                  checkboxes.forEach(cb => { 
+                     // Exact match check
                      if(parts.includes(cb.value.trim())) { 
                          cb.checked = true; 
                          cb.parentElement.classList.add('selected'); 
@@ -451,11 +459,11 @@
              INTERNSHIP_DURATION_OPTIONS.forEach(opt => { html += `<option value="${opt}">${opt}</option>`; });
              html += `</select>`; div.innerHTML = html; formEl.appendChild(div);
           }
-          else if (/Mobile Country Code/.test(name)) {
+          else if (/Mobile/i.test(name)) {
              const div = document.createElement('div'); div.className='field';
              let codeOpts = `<option value="">Code</option>`;
              (APP_CONFIG.countryCodes || []).forEach(c => { codeOpts += `<option value="${c.code}">${c.code} (${c.country})</option>`; });
-             div.innerHTML = `<label>${name}</label><select name="${name}" required>${codeOpts}</select>`;
+             div.innerHTML = `<label>${name}</label><div class="phone-row"><select name="Mobile Country Code" required>${codeOpts}</select><input type="tel" name="${name}" placeholder="Phone Number" required></div>`;
              formEl.appendChild(div);
           }
           else if (/Date of Birth/i.test(name)) {
@@ -535,12 +543,15 @@
         if(!form.checkValidity()) { form.reportValidity(); return; }
 
         const values = {}; const fileReads = [];
+        let mobileCode = "";
         
         // 1. Gather all basic values
         Array.from(form.elements).forEach(el => {
            if(el.name && el.type !== 'submit' && !el.disabled && !el.name.endsWith('_custom')) {
              
-             if(el.type === 'checkbox' && el.dataset.group === 'multi') {
+             if (el.name === "Mobile Country Code") { mobileCode = el.value; }
+             
+             else if(el.type === 'checkbox' && el.dataset.group === 'multi') {
                if(!values[el.name]) values[el.name] = [];
                // CRITICAL FIX: Only add if checked
                if(el.checked) values[el.name].push(el.value);
@@ -577,7 +588,10 @@
            }
         });
 
-        // JOIN ARRAY TO STRING
+        const mobileKey = Object.keys(values).find(k => /Mobile Number/i.test(k));
+        if (mobileKey && mobileCode) { values[mobileKey] = mobileCode + " " + values[mobileKey]; }
+        
+        // FIX: Join arrays, but if array is empty (no skills selected), save as ""
         Object.keys(values).forEach(k => { 
             if(Array.isArray(values[k])) {
                 values[k] = values[k].length > 0 ? values[k].join(', ') : "";
@@ -631,11 +645,10 @@
              formContainer.classList.add('hidden'); 
              messageArea.scrollIntoView({ behavior: 'smooth' });
            } else { 
-             // ⚠️ IMPORTANT: Show specific error from backend
              showMessage('Error: ' + res.message, 'error'); 
            }
         })
-        .catch(err => { hideLoading(); showMessage('Network Error: ' + err.toString(), 'error'); });
+        .catch(err => { hideLoading(); showMessage('Network Error', 'error'); });
       }
 
       // --- INITIALIZATION ---
@@ -685,17 +698,8 @@
          fetch(API_URL, { method: "POST", body: JSON.stringify({ action: "fetchRecordForEdit", payload: { persona: currentPersona, email } }) })
          .then(r => r.json()).then(res => { 
              hideLoading();
-             if(res.found) { 
-                 try {
-                    buildFormForPersona(currentPersona, res.values);
-                 } catch (err) {
-                    // CATCH THE CRASH HERE
-                    showMessage("UI RENDER ERROR: " + err.message, 'error');
-                 }
-             }
-             else { 
-               showMessage(res.message, 'error'); 
-             }
+             if(res.found) { buildFormForPersona(currentPersona, res.values); }
+             else { showMessage('Record not found. Please check email or persona.', 'error'); }
          });
       });
     </script>
