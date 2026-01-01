@@ -173,7 +173,7 @@
       // ==========================================
       // ⚠️ IMPORTANT: PASTE YOUR DEPLOYED WEB APP URL HERE
       // ==========================================
-      const API_URL = "https://script.google.com/macros/s/AKfycbz2HRSY3ohXqHGUs-ahCWB82VZev8q2XFtSFH2vfTSHr_k3QDiq8pEDii3QzdLaFbiMqg/exec"; 
+      const API_URL = "https://script.google.com/macros/s/AKfycbyEhgcSbtxSlqHXdBUDEAR7nbACGhIwqpnWpdh_VDL1h8Bs5vmDOi1TGsN0xE3j840V/exec"; 
 
       let PERSONA_FIELDS = {};
       let APP_CONFIG = {};
@@ -216,7 +216,7 @@
       function hideLoading() { loader.classList.remove('active'); }
       function showMessage(text, type='success') {
         // Handle multiline debug messages gracefully
-        const formattedText = text.replace(/\n/g, '<br>');
+        const formattedText = String(text).replace(/\n/g, '<br>');
         messageArea.innerHTML = `<div class="message" style="background:${type==='error'?'#ffebee':'#e8f5e9'}; color:${type==='error'?'#c62828':'#2e7d32'}; border:1px solid ${type==='error'?'#ef9a9a':'#a5d6a7'};">${formattedText}</div>`;
         messageArea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }
@@ -287,8 +287,8 @@
              if (String(i.value).toLowerCase() === String(val).toLowerCase()) i.checked = true; 
           }
           else if (i.type === 'date') {
-             if (val.includes('-') && val.length >= 10) { i.value = val.substring(0, 10); }
-             else if (val.includes('/')) { const parts = val.split('/'); if(parts.length === 3) i.value = `${parts[2]}-${parts[1]}-${parts[0]}`; }
+             if (val && val.includes('-') && val.length >= 10) { i.value = val.substring(0, 10); }
+             else if (val && val.includes('/')) { const parts = val.split('/'); if(parts.length === 3) i.value = `${parts[2]}-${parts[1]}-${parts[0]}`; }
           }
           else if (i.type !== 'file') {
             
@@ -317,7 +317,7 @@
 
                 const inList = list && list.some(item => String(item).toLowerCase() === String(val).toLowerCase());
 
-                if (list && !inList && val !== 'Other' && val.trim() !== '') {
+                if (list && !inList && val !== 'Other' && String(val).trim() !== '') {
                     i.value = 'Other';
                     const customInput = formEl.querySelector(`input[name="${i.name}_custom"]`);
                     if(customInput) { customInput.value = val; customInput.classList.remove('hidden'); customInput.required = true; }
@@ -570,9 +570,7 @@
            }
         });
 
-        // ⚠️ FIX: DO NOT CONCATENATE MOBILE HERE. They are already separate keys in `values` object.
-        
-        // FIX: Join arrays, but if array is empty (no skills selected), save as ""
+        // JOIN ARRAY TO STRING
         Object.keys(values).forEach(k => { 
             if(Array.isArray(values[k])) {
                 values[k] = values[k].length > 0 ? values[k].join(', ') : "";
@@ -680,7 +678,13 @@
          fetch(API_URL, { method: "POST", body: JSON.stringify({ action: "fetchRecordForEdit", payload: { persona: currentPersona, email } }) })
          .then(r => r.json()).then(res => { 
              hideLoading();
-             if(res.found) { buildFormForPersona(currentPersona, res.values); }
+             if(res.found) { 
+                 try {
+                    buildFormForPersona(currentPersona, res.values);
+                 } catch (err) {
+                    showMessage("UI RENDER ERROR: " + err.message, 'error');
+                 }
+             }
              else { 
                // ⚠️ IMPORTANT: Show real message from backend
                showMessage(res.message, 'error'); 
