@@ -173,7 +173,7 @@
       // ==========================================
       // ⚠️ IMPORTANT: PASTE YOUR DEPLOYED WEB APP URL HERE
       // ==========================================
-      const API_URL = "https://script.google.com/macros/s/AKfycbxR1GoCK-OILKKliRcnzqN8L5VQSeNnfIUrE1BiGWY11kkbng8gjKTDhWA55wgYAerglw/exec"; 
+      const API_URL = "https://script.google.com/macros/s/AKfycbz2HRSY3ohXqHGUs-ahCWB82VZev8q2XFtSFH2vfTSHr_k3QDiq8pEDii3QzdLaFbiMqg/exec"; 
 
       let PERSONA_FIELDS = {};
       let APP_CONFIG = {};
@@ -291,33 +291,21 @@
           else if (i.type !== 'file') {
             
             // --- FIXED MOBILE LOGIC ---
-            if (/mobile/i.test(i.name)) {
-                // Ensure value is treated as string and trimmed
-                const fullPhone = String(val).trim();
-                const countryCodes = APP_CONFIG.countryCodes || [];
-                
-                if (i.tagName === 'SELECT') {
-                    // Default to empty first
-                    i.value = "";
-                    // Try to find if phone starts with any known code
-                    for (let c of countryCodes) {
-                        if (fullPhone.startsWith(c.code)) {
-                            i.value = c.code; 
-                            break;
-                        }
-                    }
-                } else if (i.tagName === 'INPUT') {
-                    let cleanPhone = fullPhone;
-                    // Remove the code prefix if it exists
-                    for (let c of countryCodes) {
-                        if (cleanPhone.startsWith(c.code)) {
-                            cleanPhone = cleanPhone.substring(c.code.length).trim();
-                            break;
-                        }
-                    }
-                    i.value = cleanPhone;
+            if (/Mobile Number/i.test(i.name)) {
+                // If value came back with single quote, strip it
+                if (String(val).startsWith("'")) {
+                    i.value = String(val).substring(1);
+                } else {
+                    i.value = val;
                 }
             } 
+            else if (/Mobile Country Code/i.test(i.name)) {
+                if (String(val).startsWith("'")) {
+                    i.value = String(val).substring(1);
+                } else {
+                    i.value = val;
+                }
+            }
             
             // Handle "Other" logic in Edit Mode
             else if ((/University|College|City|Country/i.test(i.name)) && i.tagName === 'INPUT' && i.type === 'text') {
@@ -344,17 +332,13 @@
         Object.keys(prefillValues).forEach(k => {
            let val = prefillValues[k];
            
-           // CRITICAL FIX: If value is null, undefined, or empty string, DO NOTHING (Select nothing)
            if (!val || String(val).trim() === "") return;
 
            const checkboxes = formEl.querySelectorAll(`input[type="checkbox"][name="${k}"][data-group="multi"]`);
            if(checkboxes.length > 0) {
-             // Split string, filter out empty strings
              const parts = String(val).split(',').map(s=>s.trim()).filter(s => s !== "");
-             
              if (parts.length > 0) {
                  checkboxes.forEach(cb => { 
-                     // Exact match check
                      if(parts.includes(cb.value.trim())) { 
                          cb.checked = true; 
                          cb.parentElement.classList.add('selected'); 
@@ -459,11 +443,11 @@
              INTERNSHIP_DURATION_OPTIONS.forEach(opt => { html += `<option value="${opt}">${opt}</option>`; });
              html += `</select>`; div.innerHTML = html; formEl.appendChild(div);
           }
-          else if (/Mobile/i.test(name)) {
+          else if (/Mobile Country Code/.test(name)) {
              const div = document.createElement('div'); div.className='field';
              let codeOpts = `<option value="">Code</option>`;
              (APP_CONFIG.countryCodes || []).forEach(c => { codeOpts += `<option value="${c.code}">${c.code} (${c.country})</option>`; });
-             div.innerHTML = `<label>${name}</label><div class="phone-row"><select name="Mobile Country Code" required>${codeOpts}</select><input type="tel" name="${name}" placeholder="Phone Number" required></div>`;
+             div.innerHTML = `<label>${name}</label><select name="${name}" required>${codeOpts}</select>`;
              formEl.appendChild(div);
           }
           else if (/Date of Birth/i.test(name)) {
@@ -543,15 +527,12 @@
         if(!form.checkValidity()) { form.reportValidity(); return; }
 
         const values = {}; const fileReads = [];
-        let mobileCode = "";
         
         // 1. Gather all basic values
         Array.from(form.elements).forEach(el => {
            if(el.name && el.type !== 'submit' && !el.disabled && !el.name.endsWith('_custom')) {
              
-             if (el.name === "Mobile Country Code") { mobileCode = el.value; }
-             
-             else if(el.type === 'checkbox' && el.dataset.group === 'multi') {
+             if(el.type === 'checkbox' && el.dataset.group === 'multi') {
                if(!values[el.name]) values[el.name] = [];
                // CRITICAL FIX: Only add if checked
                if(el.checked) values[el.name].push(el.value);
@@ -588,8 +569,7 @@
            }
         });
 
-        const mobileKey = Object.keys(values).find(k => /Mobile Number/i.test(k));
-        if (mobileKey && mobileCode) { values[mobileKey] = mobileCode + " " + values[mobileKey]; }
+        // ⚠️ FIX: DO NOT CONCATENATE MOBILE HERE. They are already separate keys in `values` object.
         
         // FIX: Join arrays, but if array is empty (no skills selected), save as ""
         Object.keys(values).forEach(k => { 
