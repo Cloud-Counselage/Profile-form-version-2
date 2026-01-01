@@ -226,7 +226,8 @@
         else { d.innerHTML = ''; }
         
         let finalList = items || [];
-        const listsWithOther = ['universities_list', 'cities_list', 'countries_list'];
+        // ✅ ADDED industries_list HERE so it gets "Other"
+        const listsWithOther = ['universities_list', 'cities_list', 'countries_list', 'industries_list'];
         if (listsWithOther.includes(id) && !finalList.includes('Other')) {
             finalList = [...finalList, 'Other'];
         }
@@ -325,7 +326,7 @@
                 if(/University|College/i.test(i.name)) list = APP_CONFIG.selectOptions.universities;
                 else if(/City/i.test(i.name)) list = APP_CONFIG.selectOptions.cities;
                 else if(/Country/i.test(i.name)) list = APP_CONFIG.selectOptions.countries;
-                else if(/Industry/i.test(i.name) && !/Preferred/i.test(i.name)) list = APP_CONFIG.selectOptions.industries; // Handle Industry prefill
+                else if(/Industry/i.test(i.name) && !/Preferred/i.test(i.name)) list = APP_CONFIG.selectOptions.industries; 
 
                 const inList = list && list.some(item => String(item).toLowerCase() === String(val).toLowerCase());
 
@@ -476,7 +477,6 @@
              html += `</select>`; div.innerHTML = html; formEl.appendChild(div);
           }
           else if ((/Year of Graduation|Year/i.test(name)) && (!/Study|Experience/i.test(name))) {
-             // ⚠️ FIX: Added |Experience to exclude "Years of Experience" from this dropdown logic
              const div = document.createElement('div'); div.className='field';
              let html = `<label>${name}</label><select name="${name}" required><option value="">-- Select Year --</option>`;
              (APP_CONFIG.years || []).forEach(y => { html += `<option value="${y}">${y}</option>`; });
@@ -488,7 +488,7 @@
              formEl.appendChild(div);
           }
           // --- AUTOCOMPLETE WITH 'OTHER' LOGIC ---
-          // ⚠️ FIX: Added |Industry here
+          // ✅ ADDED |Industry here
           else if (/University|College|City|Country|How Did You Hear|Company|Industry/i.test(name)) {
              const div = document.createElement('div'); div.className='field';
              let listId = "";
@@ -497,11 +497,12 @@
              else if(/Country/i.test(name)) listId = "countries_list";
              else if(/How/i.test(name)) listId = "sources_list";
              else if(/Company/i.test(name)) listId = "companies_list";
-             else if(/Industry/i.test(name)) listId = "industries_list"; // ⚠️ FIX: Mapped Industry to industries_list
+             // ✅ MAPPED Industry to the list
+             else if(/Industry/i.test(name)) listId = "industries_list"; 
              
              let hintHTML = "";
-             // Show hint for Uni, City, Country
-             if (/University|College|City|Country/i.test(name)) {
+             // Show hint for Uni, City, Country, and Industry
+             if (/University|College|City|Country|Industry/i.test(name)) {
                  hintHTML = `<div class="other-hint">Can't find your option? Select 'Other' from the list to enter it manually.</div>`;
              }
 
@@ -528,7 +529,6 @@
              formEl.appendChild(div);
           } 
           else {
-             // ⚠️ "Years of Professional Experience" falls here now -> Text Input
              const div = document.createElement('div'); div.className='field';
              div.innerHTML = `<label>${name}</label><input type="text" name="${name}" required>`;
              formEl.appendChild(div);
@@ -674,7 +674,6 @@
             createDatalist('skills_list', APP_CONFIG.selectOptions.skills);
             createDatalist('companies_list', APP_CONFIG.selectOptions.companies);
             createDatalist('sources_list', APP_CONFIG.selectOptions.sources);
-            // ⚠️ FIX: Added Industry List here
             createDatalist('industries_list', APP_CONFIG.selectOptions.industries);
          }
          Object.keys(PERSONA_FIELDS).forEach(p => { const opt = document.createElement('option'); opt.value = p; opt.textContent = p; personaSelect.appendChild(opt); });
