@@ -215,7 +215,9 @@
       function showLoading(msg = "Loading...") { loaderText.textContent = msg; loader.classList.add('active'); }
       function hideLoading() { loader.classList.remove('active'); }
       function showMessage(text, type='success') {
-        messageArea.innerHTML = `<div class="message" style="background:${type==='error'?'#ffebee':'#e8f5e9'}; color:${type==='error'?'#c62828':'#2e7d32'}; border:1px solid ${type==='error'?'#ef9a9a':'#a5d6a7'};">${text}</div>`;
+        // Handle multiline debug messages gracefully
+        const formattedText = text.replace(/\n/g, '<br>');
+        messageArea.innerHTML = `<div class="message" style="background:${type==='error'?'#ffebee':'#e8f5e9'}; color:${type==='error'?'#c62828':'#2e7d32'}; border:1px solid ${type==='error'?'#ef9a9a':'#a5d6a7'};">${formattedText}</div>`;
         messageArea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }
       function sanitizeId(s) { return String(s).replace(/[^a-z0-9\-_]/ig,'_'); }
@@ -292,7 +294,6 @@
             
             // --- FIXED MOBILE LOGIC ---
             if (/Mobile Number/i.test(i.name)) {
-                // If value came back with single quote, strip it
                 if (String(val).startsWith("'")) {
                     i.value = String(val).substring(1);
                 } else {
@@ -625,10 +626,11 @@
              formContainer.classList.add('hidden'); 
              messageArea.scrollIntoView({ behavior: 'smooth' });
            } else { 
+             // ⚠️ IMPORTANT: Show specific error from backend
              showMessage('Error: ' + res.message, 'error'); 
            }
         })
-        .catch(err => { hideLoading(); showMessage('Network Error', 'error'); });
+        .catch(err => { hideLoading(); showMessage('Network Error: ' + err.toString(), 'error'); });
       }
 
       // --- INITIALIZATION ---
@@ -679,7 +681,10 @@
          .then(r => r.json()).then(res => { 
              hideLoading();
              if(res.found) { buildFormForPersona(currentPersona, res.values); }
-             else { showMessage('Record not found. Please check email or persona.', 'error'); }
+             else { 
+               // ⚠️ IMPORTANT: Show real message from backend
+               showMessage(res.message, 'error'); 
+             }
          });
       });
     </script>
