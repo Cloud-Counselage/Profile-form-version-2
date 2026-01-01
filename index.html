@@ -226,7 +226,6 @@
         else { d.innerHTML = ''; }
         
         let finalList = items || [];
-        // ✅ ADDED industries_list HERE so it gets "Other"
         const listsWithOther = ['universities_list', 'cities_list', 'countries_list', 'industries_list'];
         if (listsWithOther.includes(id) && !finalList.includes('Other')) {
             finalList = [...finalList, 'Other'];
@@ -279,9 +278,18 @@
           let val = prefillValues[i.name];
           if (val === undefined || val === null) return;
           
-          if (i.type === 'checkbox' && i.dataset.group !== 'multi') { 
-             i.checked = (String(val).toLowerCase() === 'yes'); 
+          // --- FIX START: STRICT CHECKBOX HANDLING ---
+          if (i.type === 'checkbox') {
+             // Only handle YES/NO checkboxes here.
+             // If it is a 'multi' group, SKIP IT in this loop, 
+             // because the 2nd loop below will handle it correctly.
+             if (i.dataset.group !== 'multi') { 
+                i.checked = (String(val).toLowerCase() === 'yes'); 
+             }
+             return; // Stop processing this element to prevent falling into 'else { i.value = val }'
           }
+          // --- FIX END ---
+          
           else if (i.type === 'radio') { 
              if (String(i.value).toLowerCase() === String(val).toLowerCase()) i.checked = true; 
           }
@@ -293,14 +301,11 @@
             
             // --- FIXED MOBILE LOGIC ---
             if (/mobile/i.test(i.name)) {
-                // Ensure value is treated as string and trimmed
                 const fullPhone = String(val).trim();
                 const countryCodes = APP_CONFIG.countryCodes || [];
                 
                 if (i.tagName === 'SELECT') {
-                    // Default to empty first
                     i.value = "";
-                    // Try to find if phone starts with any known code
                     for (let c of countryCodes) {
                         if (fullPhone.startsWith(c.code)) {
                             i.value = c.code; 
@@ -309,7 +314,6 @@
                     }
                 } else if (i.tagName === 'INPUT') {
                     let cleanPhone = fullPhone;
-                    // Remove the code prefix if it exists
                     for (let c of countryCodes) {
                         if (cleanPhone.startsWith(c.code)) {
                             cleanPhone = cleanPhone.substring(c.code.length).trim();
@@ -342,7 +346,7 @@
           }
         });
         
-        // --- FIXED MULTI-SELECT LOGIC ---
+        // --- FIXED MULTI-SELECT LOGIC (Running safely now) ---
         Object.keys(prefillValues).forEach(k => {
            let val = prefillValues[k];
            
@@ -488,7 +492,6 @@
              formEl.appendChild(div);
           }
           // --- AUTOCOMPLETE WITH 'OTHER' LOGIC ---
-          // ✅ ADDED |Industry here
           else if (/University|College|City|Country|How Did You Hear|Company|Industry/i.test(name)) {
              const div = document.createElement('div'); div.className='field';
              let listId = "";
@@ -497,7 +500,6 @@
              else if(/Country/i.test(name)) listId = "countries_list";
              else if(/How/i.test(name)) listId = "sources_list";
              else if(/Company/i.test(name)) listId = "companies_list";
-             // ✅ MAPPED Industry to the list
              else if(/Industry/i.test(name)) listId = "industries_list"; 
              
              let hintHTML = "";
