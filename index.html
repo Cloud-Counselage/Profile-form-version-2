@@ -278,20 +278,26 @@
           let val = prefillValues[i.name];
           if (val === undefined || val === null) return;
           
-          // --- FIX START: STRICT CHECKBOX HANDLING ---
           if (i.type === 'checkbox') {
-             // Only handle YES/NO checkboxes here.
-             // If it is a 'multi' group, SKIP IT in this loop, 
-             // because the 2nd loop below will handle it correctly.
              if (i.dataset.group !== 'multi') { 
                 i.checked = (String(val).toLowerCase() === 'yes'); 
              }
-             return; // Stop processing this element to prevent falling into 'else { i.value = val }'
+             return; 
           }
-          // --- FIX END ---
           
           else if (i.type === 'radio') { 
-             if (String(i.value).toLowerCase() === String(val).toLowerCase()) i.checked = true; 
+             if (String(i.value).toLowerCase() === String(val).toLowerCase()) {
+                 i.checked = true;
+                 
+                 // --- LOGIC: Handle Conditional Visibility on Load/Edit ---
+                 if (i.name === "Are You Interested in Internship / Job Opportunities?" && i.value === "Yes") {
+                    const target = document.getElementById('field_Preferred_Internship_Duration');
+                    const sel = target ? target.querySelector('select') : null;
+                    if(target) target.classList.remove('hidden');
+                    if(sel) sel.required = true;
+                 }
+                 // --------------------------------------------------------
+             } 
           }
           else if (i.type === 'date') {
              if (val.includes('-') && val.length >= 10) { i.value = val.substring(0, 10); }
@@ -346,7 +352,7 @@
           }
         });
         
-        // --- FIXED MULTI-SELECT LOGIC (Running safely now) ---
+        // --- FIXED MULTI-SELECT LOGIC ---
         Object.keys(prefillValues).forEach(k => {
            let val = prefillValues[k];
            
@@ -414,7 +420,7 @@
                     fetch(API_URL, { method: "POST", body: JSON.stringify({ action: "emailExists", payload: { persona: currentPersona, email: email } }) })
                     .then(r => r.json()).then(exists => {
                         if (exists) {
-                            msgDiv.innerHTML = "🚫 Application exists. Use <b>Edit Existing Application</b> mode.";
+                            msgDiv.innerHTML = "🚫 Application exists. Use <b>Edit</b> mode.";
                             msgDiv.className = "validation-msg error";
                             btn.disabled = true; toggleFormFields(formEl, true);
                         } else {
@@ -437,6 +443,27 @@
              const div = document.createElement('div'); div.className='field';
              div.innerHTML = `<label>${name}</label><div class="radio-group"><label class="radio-label"><input type="radio" name="${name}" value="Yes" required> Yes</label><label class="radio-label"><input type="radio" name="${name}" value="No"> No</label></div>`;
              formEl.appendChild(div);
+             
+             // --- LOGIC: Trigger Dependency ---
+             if (name === "Are You Interested in Internship / Job Opportunities?") {
+                 div.querySelectorAll('input').forEach(r => {
+                     r.addEventListener('change', () => {
+                         const target = document.getElementById('field_Preferred_Internship_Duration');
+                         const sel = target ? target.querySelector('select') : null;
+                         if (target && sel) {
+                             if(r.value === 'Yes') {
+                                 target.classList.remove('hidden');
+                                 sel.required = true;
+                             } else {
+                                 target.classList.add('hidden');
+                                 sel.required = false;
+                                 sel.value = "";
+                             }
+                         }
+                     });
+                 });
+             }
+             // -------------------------------
           } 
           else if (/resume/i.test(name)) {
              const existingUrl = prefillValues ? prefillValues[name] : null;
@@ -457,8 +484,14 @@
              formEl.appendChild(createCheckboxList(name, opts || []));
           } 
           else if (/Preferred Internship Duration/i.test(name)) {
-             const div = document.createElement('div'); div.className='field';
-             let html = `<label>${name}</label><select name="${name}" required><option value="">-- Select Duration --</option>`;
+             const div = document.createElement('div'); 
+             // --- LOGIC: Hidden by default ---
+             div.className='field hidden'; 
+             div.id = 'field_Preferred_Internship_Duration';
+             // --------------------------------
+             
+             // Removed 'required' attribute initially since it is hidden
+             let html = `<label>${name}</label><select name="${name}"><option value="">-- Select Duration --</option>`;
              INTERNSHIP_DURATION_OPTIONS.forEach(opt => { html += `<option value="${opt}">${opt}</option>`; });
              html += `</select>`; div.innerHTML = html; formEl.appendChild(div);
           }
@@ -491,7 +524,6 @@
              div.innerHTML = `<label>${name}</label><select name="${name}" required><option value="">-- Select Year --</option><option value="1st Year">1st Year</option><option value="2nd Year">2nd Year</option><option value="3rd Year">3rd Year</option><option value="Final Year">Final Year</option><option value="Postgraduate">Postgraduate</option></select>`;
              formEl.appendChild(div);
           }
-          // --- AUTOCOMPLETE WITH 'OTHER' LOGIC ---
           else if (/University|College|City|Country|How Did You Hear|Company|Industry/i.test(name)) {
              const div = document.createElement('div'); div.className='field';
              let listId = "";
@@ -503,7 +535,6 @@
              else if(/Industry/i.test(name)) listId = "industries_list"; 
              
              let hintHTML = "";
-             // Show hint for Uni, City, Country, and Industry
              if (/University|College|City|Country|Industry/i.test(name)) {
                  hintHTML = `<div class="other-hint">Can't find your option? Select 'Other' from the list to enter it manually.</div>`;
              }
@@ -645,10 +676,10 @@
                   <p class="success-desc">${res.message}</p>
                   <p style="font-weight:600; color:#2d3436; margin-top:20px;">Explore Opportunities:</p>
                   <div class="cards-grid">
-                    <a href="${pu.gpi}" target="_blank" class="card-link"><span class="card-icon">🌍</span><span class="card-title">GPI Program</span><span class="card-sub">Global Professional Internship</span></a>
+                    <a href="${pu.gpi}" target="_blank" class="card-link"><span class="card-icon">🌍</span><span class="card-title">GPI Program</span><span class="card-sub">Global Project Initiative</span></a>
                     <a href="${pu.industryTraining}" target="_blank" class="card-link"><span class="card-icon">🛠️</span><span class="card-title">Industry Training</span><span class="card-sub">Hands-on Technical Skills</span></a>
-                    <a href="${pu.sel}" target="_blank" class="card-link"><span class="card-icon">🚀</span><span class="card-title">SEL Program</span><span class="card-sub">Startup Entrepreneurship Launchpad</span></a>
-                    <a href="${pu.jobs}" target="_blank" class="card-link"><span class="card-icon">💼</span><span class="card-title">Jobs</span><span class="card-sub">Job Opportunities</span></a>
+                    <a href="${pu.sel}" target="_blank" class="card-link"><span class="card-icon">🚀</span><span class="card-title">SEL Program</span><span class="card-sub">Student Engagement Learning</span></a>
+                    <a href="${pu.jobs}" target="_blank" class="card-link"><span class="card-icon">💼</span><span class="card-title">Jobs</span><span class="card-sub">Career Opportunities</span></a>
                   </div>
                 </div>
               `;
