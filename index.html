@@ -414,7 +414,7 @@
                     fetch(API_URL, { method: "POST", body: JSON.stringify({ action: "emailExists", payload: { persona: currentPersona, email: email } }) })
                     .then(r => r.json()).then(exists => {
                         if (exists) {
-                            msgDiv.innerHTML = "🚫 Application exists. Use <b>Edit</b> mode.";
+                            msgDiv.innerHTML = "🚫 Application exists. Use <b>Edit Existing Application</b> mode.";
                             msgDiv.className = "validation-msg error";
                             btn.disabled = true; toggleFormFields(formEl, true);
                         } else {
