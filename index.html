@@ -289,14 +289,15 @@
              if (String(i.value).toLowerCase() === String(val).toLowerCase()) {
                  i.checked = true;
                  
-                 // --- LOGIC: Handle Conditional Visibility on Load/Edit ---
-                 if (i.name === "Are You Interested in Internship / Job Opportunities?" && i.value === "Yes") {
+                 // --- FIXED LOGIC: Safer Matching on Edit Mode ---
+                 // Checks if question contains "Interested in Internship" to be safe
+                 if (i.name.indexOf("Interested in Internship") !== -1 && i.value === "Yes") {
                     const target = document.getElementById('field_Preferred_Internship_Duration');
                     const sel = target ? target.querySelector('select') : null;
                     if(target) target.classList.remove('hidden');
                     if(sel) sel.required = true;
                  }
-                 // --------------------------------------------------------
+                 // -----------------------------------------------
              } 
           }
           else if (i.type === 'date') {
@@ -444,8 +445,9 @@
              div.innerHTML = `<label>${name}</label><div class="radio-group"><label class="radio-label"><input type="radio" name="${name}" value="Yes" required> Yes</label><label class="radio-label"><input type="radio" name="${name}" value="No"> No</label></div>`;
              formEl.appendChild(div);
              
-             // --- LOGIC: Trigger Dependency ---
-             if (name === "Are You Interested in Internship / Job Opportunities?") {
+             // --- FIXED LOGIC: Safer Matching ---
+             // Checks if question contains "Interested in Internship" to match trigger
+             if (name.indexOf("Interested in Internship") !== -1) {
                  div.querySelectorAll('input').forEach(r => {
                      r.addEventListener('change', () => {
                          const target = document.getElementById('field_Preferred_Internship_Duration');
