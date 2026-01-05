@@ -153,6 +153,9 @@
         <button id="btnEdit" class="btn ghost">Edit Existing Application</button>
       </div>
 
+      <div id="facultyImmediateArea" class="hidden" style="margin-top:20px;">
+         </div>
+
       <div id="workflowArea">
         <div id="facultyCtaArea" class="hidden" style="margin:12px 0;"></div>
         
@@ -185,6 +188,7 @@
       const loaderText = document.getElementById('loaderText');
       const personaSelect = document.getElementById('personaSelect');
       const actionButtons = document.getElementById('actionButtons');
+      const facultyImmediateArea = document.getElementById('facultyImmediateArea'); // NEW
       const btnNew = document.getElementById('btnNew');
       const btnEdit = document.getElementById('btnEdit');
       const editEmailArea = document.getElementById('editEmailArea');
@@ -297,29 +301,23 @@
              } 
           }
           else if (i.type === 'date') {
-             if (val.includes('-') && val.length >= 10) { i.value = val.substring(0, 10); }
-             else if (val.includes('/')) { const parts = val.split('/'); if(parts.length === 3) i.value = `${parts[2]}-${parts[1]}-${parts[0]}`; }
+             // Backend sends YYYY-MM-DD. Input expects YYYY-MM-DD. 
+             // We trim just in case, but no re-formatting needed if format is correct.
+             if (val && val.length >= 10) { i.value = val.substring(0, 10); }
           }
           else if (i.type !== 'file') {
             if (/mobile/i.test(i.name)) {
                 const fullPhone = String(val).trim();
                 const countryCodes = APP_CONFIG.countryCodes || [];
-                
                 if (i.tagName === 'SELECT') {
                     i.value = "";
                     for (let c of countryCodes) {
-                        if (fullPhone.startsWith(c.code)) {
-                            i.value = c.code; 
-                            break;
-                        }
+                        if (fullPhone.startsWith(c.code)) { i.value = c.code; break; }
                     }
                 } else if (i.tagName === 'INPUT') {
                     let cleanPhone = fullPhone;
                     for (let c of countryCodes) {
-                        if (cleanPhone.startsWith(c.code)) {
-                            cleanPhone = cleanPhone.substring(c.code.length).trim();
-                            break;
-                        }
+                        if (cleanPhone.startsWith(c.code)) { cleanPhone = cleanPhone.substring(c.code.length).trim(); break; }
                     }
                     i.value = cleanPhone;
                 }
@@ -347,19 +345,13 @@
         
         Object.keys(prefillValues).forEach(k => {
            let val = prefillValues[k];
-           
            if (!val || String(val).trim() === "") return;
-
            const checkboxes = formEl.querySelectorAll(`input[type="checkbox"][name="${k}"][data-group="multi"]`);
            if(checkboxes.length > 0) {
              const parts = String(val).split(',').map(s=>s.trim()).filter(s => s !== "");
-             
              if (parts.length > 0) {
                  checkboxes.forEach(cb => { 
-                     if(parts.includes(cb.value.trim())) { 
-                         cb.checked = true; 
-                         cb.parentElement.classList.add('selected'); 
-                     } 
+                     if(parts.includes(cb.value.trim())) { cb.checked = true; cb.parentElement.classList.add('selected'); } 
                  });
              }
            }
@@ -371,16 +363,8 @@
         formContainer.classList.remove('hidden');
         messageArea.innerHTML = ''; 
 
-        if (persona === "College Faculty") {
-            const url = APP_CONFIG.collegeFacultyFormUrl || "#";
-            formContainer.innerHTML = `<div class="faculty-box">
-                <div style="font-size:40px; margin-bottom:10px;">👨‍🏫</div>
-                <h3>Welcome, College Faculty!</h3>
-                <p>We have a dedicated application portal for college faculties.</p>
-                <a href="${url}" target="_blank" class="btn primary" style="display:inline-block; text-decoration:none; margin-top:15px;">Faculty Form</a>
-            </div>`;
-            return; 
-        }
+        // Note: Faculty check moved to Listener, but kept here for fallback
+        if (persona === "College Faculty") { return; }
 
         const fields = PERSONA_FIELDS[persona] || [];
         const formEl = document.createElement('form'); formEl.id='personaForm';
@@ -390,12 +374,9 @@
         btn.className='btn primary'; btn.textContent='Submit Application'; btn.style.marginTop = '20px';
         btn.id = 'btnSubmitForm';
 
-        // Render Fields
         fields.forEach(name => {
           if(!name) return;
-          
-          // ✅ FIX: HIDE THE EXTRA MOBILE COUNTRY CODE FIELD
-          if(name === "Mobile Country Code") return;
+          if(name === "Mobile Country Code") return; // HIDE EXTRA FIELD
 
           if (name === "Personal Email ID") {
              const div = document.createElement('div'); div.className='field';
@@ -570,13 +551,11 @@
         const values = {}; const fileReads = [];
         let mobileCode = "";
         
-        // 1. Gather all basic values
         Array.from(form.elements).forEach(el => {
            if(el.name && el.type !== 'submit' && !el.disabled && !el.name.endsWith('_custom')) {
              
              if (el.name === "Mobile Country Code") { 
                  mobileCode = el.value; 
-                 // ✅ CAPTURE: Save code to the new column
                  values[el.name] = el.value; 
              }
              
@@ -601,7 +580,8 @@
                 if(el.checked) values[el.name] = el.value;
              } 
              else if (el.type === 'date') {
-                if (el.value) { const parts = el.value.split('-'); if(parts.length === 3) values[el.name] = `${parts[2]}/${parts[1]}/${parts[0]}`; }
+                // ✅ DATE FIX: Send raw ISO string (YYYY-MM-DD). Do not convert to DD/MM/YYYY.
+                values[el.name] = el.value; 
              } 
              else {
                 if (el.value === 'Other') {
@@ -703,13 +683,41 @@
          showMessage("Failed to load form. Please refresh.", "error");
       });
 
+      // ✅ LOGIC UPDATED: Faculty Selection
       personaSelect.addEventListener('change', () => { 
           currentPersona = personaSelect.value;
+          
           if (!currentPersona) {
-              actionButtons.classList.add('hidden'); formContainer.classList.add('hidden'); editEmailArea.classList.add('hidden');
+              actionButtons.classList.add('hidden');
+              facultyImmediateArea.classList.add('hidden');
+              formContainer.classList.add('hidden');
+              editEmailArea.classList.add('hidden');
               return;
           }
+
+          // ✅ CHECK FOR FACULTY FIRST
+          if (currentPersona === "College Faculty") {
+              actionButtons.classList.add('hidden');
+              editEmailArea.classList.add('hidden');
+              formContainer.classList.add('hidden');
+              
+              // Render Message Immediately
+              const url = APP_CONFIG.collegeFacultyFormUrl || "#";
+              facultyImmediateArea.innerHTML = `
+                <div class="faculty-box">
+                    <div style="font-size:40px; margin-bottom:10px;">👨‍🏫</div>
+                    <h3>Welcome, College Faculty!</h3>
+                    <p>We have a dedicated application portal for college faculties.</p>
+                    <a href="${url}" target="_blank" class="btn primary" style="display:inline-block; text-decoration:none; margin-top:15px;">Faculty Form</a>
+                </div>`;
+              facultyImmediateArea.classList.remove('hidden');
+              return; 
+          }
+
+          // Normal Flow for other Personas
+          facultyImmediateArea.classList.add('hidden');
           actionButtons.classList.remove('hidden');
+          
           if (currentMode === 'new') { buildFormForPersona(currentPersona, {}); } 
           else if (currentMode === 'edit') { 
               formContainer.classList.add('hidden'); 
