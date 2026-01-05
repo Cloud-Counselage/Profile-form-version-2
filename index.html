@@ -27,8 +27,6 @@
       .header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid #f1f1f1; }
       .header-logo { width: 80px; height: 80px; object-fit: contain; border-radius: 8px; }
       h2 { color: var(--text-dark); font-size: 26px; font-weight: 700; }
-      
-      /* INSTRUCTIONS */
       .global-desc { font-size: 14px; color: var(--text-medium); line-height: 1.6; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 1px solid #f1f1f1; }
 
       /* INPUTS & FIELDS */
@@ -203,7 +201,7 @@
         "Are You interested in Entrepreneurship as a career option?", "Willing to Work Without Stipend for First 3 Months (Full-time Internship)",
         "Would You Like to Connect with Mentors or Industry Professionals?", "Would You Like Guidance on Resume Building & Interview Preparation?",
         "Do You Agree to Terms of Engagement?", "Do You Agree to Receive Communications from Us?", "Do You Want to Become a Community Ambassador?", "Internships Completed",
-        "Will You Need Corporate Feedback Report to Submit in Your College?" 
+        "Will You Need Corporate Feedback Report to Submit in Your College?"
       ];
 
       const MULTI_SELECT_MAP = {
@@ -287,12 +285,9 @@
              }
              return; 
           }
-          
           else if (i.type === 'radio') { 
              if (String(i.value).toLowerCase() === String(val).toLowerCase()) {
                  i.checked = true;
-                 
-                 // --- LOGIC: Toggle Duration on Edit Load ---
                  if (i.name.toLowerCase().indexOf("interested in internship") !== -1 && i.value === "Yes") {
                     const target = document.getElementById('div_internship_duration');
                     const sel = target ? target.querySelector('select') : null;
@@ -399,6 +394,9 @@
         fields.forEach(name => {
           if(!name) return;
           
+          // ✅ FIX: HIDE THE EXTRA MOBILE COUNTRY CODE FIELD
+          if(name === "Mobile Country Code") return;
+
           if (name === "Personal Email ID") {
              const div = document.createElement('div'); div.className='field';
              div.innerHTML = `<label>${name} <span style="color:red">*</span></label>
@@ -441,7 +439,6 @@
              div.innerHTML = `<label>${name}</label><div class="radio-group"><label class="radio-label"><input type="radio" name="${name}" value="Yes" required> Yes</label><label class="radio-label"><input type="radio" name="${name}" value="No"> No</label></div>`;
              formEl.appendChild(div);
              
-             // --- LOGIC: Trigger Dependency ---
              if (name.toLowerCase().indexOf("interested in internship") !== -1) {
                  div.querySelectorAll('input').forEach(r => {
                      r.addEventListener('change', () => {
@@ -483,9 +480,7 @@
              const div = document.createElement('div'); 
              div.className='field'; 
              div.id = 'div_internship_duration';
-             // Default Hidden
              div.style.display = 'none';
-             
              let html = `<label>${name}</label><select name="${name}"><option value="">-- Select Duration --</option>`;
              INTERNSHIP_DURATION_OPTIONS.forEach(opt => { html += `<option value="${opt}">${opt}</option>`; });
              html += `</select>`; div.innerHTML = html; formEl.appendChild(div);
@@ -577,14 +572,15 @@
         
         // 1. Gather all basic values
         Array.from(form.elements).forEach(el => {
-           // Skip submit buttons, disabled fields, and custom helpers
            if(el.name && el.type !== 'submit' && !el.disabled && !el.name.endsWith('_custom')) {
              
-             if (el.name === "Mobile Country Code") { mobileCode = el.value; }
+             if (el.name === "Mobile Country Code") { 
+                 mobileCode = el.value; 
+                 // ✅ CAPTURE: Save code to the new column
+                 values[el.name] = el.value; 
+             }
              
-             // --- FIX: Handle File Inputs ---
              else if (el.type === 'file') {
-                 // Only process if a file is actually selected
                  if (el.files.length > 0) {
                     const f = el.files[0];
                     const p = new Promise((resolve) => {
@@ -594,11 +590,8 @@
                     });
                     fileReads.push(p);
                  }
-                 // If NO file selected, do nothing. 
-                 // This ensures 'undefined' is sent to backend, preserving the old URL.
                  return; 
              }
-             // --- FIX END ---
 
              else if(el.type === 'checkbox' && el.dataset.group === 'multi') {
                if(!values[el.name]) values[el.name] = [];
@@ -610,7 +603,6 @@
              else if (el.type === 'date') {
                 if (el.value) { const parts = el.value.split('-'); if(parts.length === 3) values[el.name] = `${parts[2]}/${parts[1]}/${parts[0]}`; }
              } 
-             // Special Check for "Other" Fields
              else {
                 if (el.value === 'Other') {
                    const customEl = form.querySelector(`input[name="${el.name}_custom"]`);
