@@ -28,7 +28,7 @@
       .header-logo { width: 80px; height: 80px; object-fit: contain; border-radius: 8px; }
       h2 { color: var(--text-dark); font-size: 26px; font-weight: 700; }
       
-      /* INSTRUCTIONS (Moved Up) */
+      /* INSTRUCTIONS */
       .global-desc { font-size: 14px; color: var(--text-medium); line-height: 1.6; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 1px solid #f1f1f1; }
 
       /* INPUTS & FIELDS */
@@ -203,7 +203,7 @@
         "Are You interested in Entrepreneurship as a career option?", "Willing to Work Without Stipend for First 3 Months (Full-time Internship)",
         "Would You Like to Connect with Mentors or Industry Professionals?", "Would You Like Guidance on Resume Building & Interview Preparation?",
         "Do You Agree to Terms of Engagement?", "Do You Agree to Receive Communications from Us?", "Do You Want to Become a Community Ambassador?", "Internships Completed",
-        "Will You Need Corporate Feedback Report to Submit in Your College?" // ✅ INCLUDED NEW QUESTION
+        "Will You Need Corporate Feedback Report to Submit in Your College?" 
       ];
 
       const MULTI_SELECT_MAP = {
@@ -229,7 +229,6 @@
         else { d.innerHTML = ''; }
         
         let finalList = items || [];
-        // ✅ INDUSTRIES LIST INCLUDED
         const listsWithOther = ['universities_list', 'cities_list', 'countries_list', 'industries_list'];
         if (listsWithOther.includes(id) && !finalList.includes('Other')) {
             finalList = [...finalList, 'Other'];
@@ -282,25 +281,31 @@
           let val = prefillValues[i.name];
           if (val === undefined || val === null) return;
           
-          // --- FIX: Strict Checkbox Logic (Prevents selection bugs) ---
           if (i.type === 'checkbox') {
              if (i.dataset.group !== 'multi') { 
                 i.checked = (String(val).toLowerCase() === 'yes'); 
              }
              return; 
           }
-          // ------------------------------------------------------------
           
           else if (i.type === 'radio') { 
-             if (String(i.value).toLowerCase() === String(val).toLowerCase()) i.checked = true; 
+             if (String(i.value).toLowerCase() === String(val).toLowerCase()) {
+                 i.checked = true;
+                 
+                 // --- LOGIC: Toggle Duration on Edit Load ---
+                 if (i.name.toLowerCase().indexOf("interested in internship") !== -1 && i.value === "Yes") {
+                    const target = document.getElementById('div_internship_duration');
+                    const sel = target ? target.querySelector('select') : null;
+                    if(target) target.style.display = 'block';
+                    if(sel) sel.required = true;
+                 }
+             } 
           }
           else if (i.type === 'date') {
              if (val.includes('-') && val.length >= 10) { i.value = val.substring(0, 10); }
              else if (val.includes('/')) { const parts = val.split('/'); if(parts.length === 3) i.value = `${parts[2]}-${parts[1]}-${parts[0]}`; }
           }
           else if (i.type !== 'file') {
-            
-            // --- FIXED MOBILE LOGIC ---
             if (/mobile/i.test(i.name)) {
                 const fullPhone = String(val).trim();
                 const countryCodes = APP_CONFIG.countryCodes || [];
@@ -324,8 +329,6 @@
                     i.value = cleanPhone;
                 }
             } 
-            
-            // Handle "Other" logic in Edit Mode
             else if ((/University|College|City|Country|Industry/i.test(i.name)) && i.tagName === 'INPUT' && i.type === 'text') {
                 let list = [];
                 if(/University|College/i.test(i.name)) list = APP_CONFIG.selectOptions.universities;
@@ -347,7 +350,6 @@
           }
         });
         
-        // --- FIXED MULTI-SELECT LOGIC ---
         Object.keys(prefillValues).forEach(k => {
            let val = prefillValues[k];
            
@@ -438,6 +440,26 @@
              const div = document.createElement('div'); div.className='field';
              div.innerHTML = `<label>${name}</label><div class="radio-group"><label class="radio-label"><input type="radio" name="${name}" value="Yes" required> Yes</label><label class="radio-label"><input type="radio" name="${name}" value="No"> No</label></div>`;
              formEl.appendChild(div);
+             
+             // --- LOGIC: Trigger Dependency ---
+             if (name.toLowerCase().indexOf("interested in internship") !== -1) {
+                 div.querySelectorAll('input').forEach(r => {
+                     r.addEventListener('change', () => {
+                         const target = document.getElementById('div_internship_duration');
+                         const sel = target ? target.querySelector('select') : null;
+                         if (target && sel) {
+                             if(r.value === 'Yes') {
+                                 target.style.display = 'block';
+                                 sel.required = true;
+                             } else {
+                                 target.style.display = 'none';
+                                 sel.required = false;
+                                 sel.value = "";
+                             }
+                         }
+                     });
+                 });
+             }
           } 
           else if (/resume/i.test(name)) {
              const existingUrl = prefillValues ? prefillValues[name] : null;
@@ -459,8 +481,12 @@
           } 
           else if (/Preferred Internship Duration/i.test(name)) {
              const div = document.createElement('div'); 
-             div.className='field'; // ✅ VISIBLE BY DEFAULT (No hiding logic)
-             let html = `<label>${name}</label><select name="${name}" required><option value="">-- Select Duration --</option>`;
+             div.className='field'; 
+             div.id = 'div_internship_duration';
+             // Default Hidden
+             div.style.display = 'none';
+             
+             let html = `<label>${name}</label><select name="${name}"><option value="">-- Select Duration --</option>`;
              INTERNSHIP_DURATION_OPTIONS.forEach(opt => { html += `<option value="${opt}">${opt}</option>`; });
              html += `</select>`; div.innerHTML = html; formEl.appendChild(div);
           }
@@ -493,7 +519,6 @@
              div.innerHTML = `<label>${name}</label><select name="${name}" required><option value="">-- Select Year --</option><option value="1st Year">1st Year</option><option value="2nd Year">2nd Year</option><option value="3rd Year">3rd Year</option><option value="Final Year">Final Year</option><option value="Postgraduate">Postgraduate</option></select>`;
              formEl.appendChild(div);
           }
-          // --- AUTOCOMPLETE WITH 'OTHER' LOGIC ---
           else if (/University|College|City|Country|How Did You Hear|Company|Industry/i.test(name)) {
              const div = document.createElement('div'); div.className='field';
              let listId = "";
